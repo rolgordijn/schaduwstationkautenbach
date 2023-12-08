@@ -260,7 +260,9 @@ void debugknop() {
       debug("knop ");
       debug(i + 1);
       if (knoppen[i]->getValue() == KNOP_INGEDUWD) {
-        debugln(": je hebt er op gedrukt!");
+        debugln(": je hebt op de knop op gedrukt!");
+      }else{
+        debugln(": je hebt de knop losgelaten!");
       }
       knoppen[i]->clearChangedFlag();
     }
@@ -454,7 +456,7 @@ void aantalSporenBezetDebug() {
     default:
       debug("er zijn ");
       debug(aantalSporenBezet());
-      debugln("sporen bezet");
+      debugln(" sporen bezet");
       break;
   }
 }
