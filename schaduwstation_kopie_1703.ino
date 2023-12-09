@@ -11,28 +11,14 @@
 
 //#pragma GCC optimize("-O")
 
-
-
-#if KOPSPOOR == 1
-
+//wisselsrechtdoor, enkel bij kopspoor gebruikt. 
 enum class SpoorStatus { initialisatie,
                          vrij,
                          bezet,
                          vertrek,
                          wisselsRechtdoor
                        };
-
-#else
-
-enum class SpoorStatus { initialisatie,
-                         vrij,
-                         bezet,
-                         vertrek,
-                       };
-
-#endif
-
-
+                       
 struct Track {   // Structure declaration
   long lastDepartureTimestamp;
   SpoorStatus state;
