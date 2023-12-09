@@ -140,16 +140,16 @@ Knipper knipper = Knipper(100, 500);
 Knipper knippersnel = Knipper(50, 100);
 
 #if KOPSPOOR == 1
-Wissel* wissels[6] = { &wissel1, &wissel2, &wissel3, &wissel4, &wissel5, &wissel6 };
+Wissel* wissels[] = { &wissel1, &wissel2, &wissel3, &wissel4, &wissel5, &wissel6 };
 #else
-Wissel* wissels[5] = { &wissel1, &wissel2, &wissel3, &wissel4, &wissel5 };
+Wissel* wissels[] = { &wissel1, &wissel2, &wissel3, &wissel4, &wissel5 };
 #endif
 
 
-IO* relays[8] = { &relay1, &relay2, &relay3, &relay4, &relay5, &relay6, &relay7, &relay8 };
-IO* knoppen[16] = { &knop1, &knop2, &knop3, &knop4, &knop5, &knop6, &knop7, &knop8, &knop9, &knop10, &knop11, &knop12 };
+IO* relays[] = { &relay1, &relay2, &relay3, &relay4, &relay5, &relay6, &relay7, &relay8 };
+IO* knoppen[] = { &knop1, &knop2, &knop3, &knop4, &knop5, &knop6, &knop7, &knop8, &knop9, &knop10, &knop11, &knop12 };
 IO* bezetmelders[] = { &bezetmelder1, &bezetmelder2, &bezetmelder3, &bezetmelder4, &bezetmelder5, &bezetmelder6, &bezetmelder7, &bezetmelder8, &bezetmelder9, &bezetmelder10, &bezetmelder11, &bezetmelder12 };
-IO* leds[16] = { &led1, &led2, &led3, &led4, &led5, &led6, &led7, &led8, &led9, &led10, &led11, &led12, &led13, &led14, &led15, &led16 };
+IO* leds[] = { &led1, &led2, &led3, &led4, &led5, &led6, &led7, &led8, &led9, &led10, &led11, &led12, &led13, &led14, &led15, &led16 };
 
 #if KOPSPOOR == 1
 
@@ -312,72 +312,20 @@ void setup() {
 
   delay(100);
   debugln("init wissels");
-  wissel1.init();
-  wissel2.init();
-  wissel3.init();
-  wissel4.init();
-  wissel5.init();
+  for (IO* wissel: wissels) wissel->init();
+ 
+   debugln(F("INIT led 5-8"));
+  for (IO* led : leds)led->init(OUTPUT, 0);
 
+  debugln("INIT knop 1-12");
+  for (IO* knop : knoppen)   knop->setInput();
 
-#if KOPSPOOR == 1
-  wissel6.init();
-#endif
-
-  debugln(F("INIT led 5-8"));
-  led8.init(OUTPUT, 0);
-  led7.init(OUTPUT, 0);
-  led6.init(OUTPUT, 0);
-  led5.init(OUTPUT, 0);
-
-  debugln("INIT knop 1-8");
-  knop1.setInput();
-  knop2.setInput();
-  knop3.setInput();
-  knop4.setInput();
-  knop5.setInput();
-  knop6.setInput();
-  knop7.setInput();
-  knop8.setInput();
-
-  debugln("INIT bezetmelder 1-8");
-  bezetmelder1.setInput();
-  bezetmelder2.setInput();
-  bezetmelder3.setInput();
-  bezetmelder4.setInput();
-  bezetmelder5.setInput();
-  bezetmelder6.setInput();
-  bezetmelder7.setInput();
-  bezetmelder8.setInput();
-
-  debugln("INIT knop 9-12");
-  knop9.setInput();
-  knop10.setInput();
-  knop11.setInput();
-  knop12.setInput();
-
-  debugln("INIT bezetmelder 9-12");
-  bezetmelder9.setInput();
-  bezetmelder10.setInput();
-  bezetmelder11.setInput();
-  bezetmelder12.setInput();
-
-  debugln("INIT led 9-16");
-  led9.init(OUTPUT, 0);
-  led10.init(OUTPUT, 0);
-  led11.init(OUTPUT, 0);
-  led12.init(OUTPUT, 0);
-  led13.init(OUTPUT, 0);
-  led14.init(OUTPUT, 0);
-  led15.init(OUTPUT, 0);
-  led16.init(OUTPUT, 0);
+  debugln("INIT bezetmelder 1-12");
+  for(IO* bezetmelder : bezetmelders) bezetmelder->setInput();
 
   debugln(F("init leds"));
 
   for (IO* led : leds) {
-    if (led == NULL) {
-      Serial.print("led not initialized");
-      continue;
-    }
     led->setValue(1);
     delay(100);
   }
