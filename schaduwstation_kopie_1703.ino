@@ -1,7 +1,4 @@
-#include "boardDefenitions.h"
-
 #include "IO.h"
-#include "Track.h"
 #include "Wissel.h"
 #include "debug.h"
 #include "knipper.h"
@@ -12,7 +9,7 @@
 
 #include "StopWatch.h"
 
-#pragma GCC optimize("-O")
+//#pragma GCC optimize("-O")
 
 
 
@@ -23,7 +20,7 @@ enum class SpoorStatus { initialisatie,
                          bezet,
                          vertrek,
                          wisselsRechtdoor
-};
+                       };
 
 #else
 
@@ -31,12 +28,18 @@ enum class SpoorStatus { initialisatie,
                          vrij,
                          bezet,
                          vertrek,
-};
+                       };
 
 #endif
 
 
-SpoorStatus spoorStatus[6];
+struct Track {   // Structure declaration
+  long lastDepartureTimestamp;
+  SpoorStatus state;
+};
+
+
+Track tracks[6];
 
 #if KOPSPOOR == 1
 
@@ -44,21 +47,12 @@ enum class KopSpoorStatus { init,
                             vrij,
                             bezet,
                             in,
-                            uit };
+                            uit
+                          };
 KopSpoorStatus kopSpoorStatus = KopSpoorStatus::init;
 
 #endif
 
-#if BOARD_VERSIE == 1
-
-BasicIO intBezetmelders;
-BasicIO intDrukknop;
-BasicIO buzzer = BasicIO(-1, INPUT);
-
-#endif
-
-
-#if BOARD_VERSIE == 2
 
 const int analogInputPin = A2;      // Analog input pin for current measurement
 const int peakCurrentResetPin = 2;  // Pin for the reset pulse
@@ -69,7 +63,6 @@ const int buzzerPin = 4;
 
 BasicIO buzzer = BasicIO(buzzerPin, OUTPUT);
 
-#endif
 
 MCP23017 mcp2 = MCP23017(0x21);
 MCP23017 mcp1 = MCP23017(0x20);
@@ -138,18 +131,7 @@ BasicIO relay4 = BasicIO(13, OUTPUT);
 BasicIO relay5 = BasicIO(A3, OUTPUT);
 BasicIO relay6 = BasicIO(A2, OUTPUT);
 BasicIO relay7 = BasicIO(A1, OUTPUT);
-
-
-#if BOARD_VERSIE == 1
-
-BasicIO relay8 = BasicIO(A0, OUTPUT);
-
-#elif BOARD_VERSIE == 2
-
 BasicIO relay8 = BasicIO(2, OUTPUT);
-
-#endif
-
 
 
 StopWatch stopWatch = StopWatch();
@@ -177,10 +159,22 @@ bool kopspoorIn = false;
 #endif
 
 
-#if BOARD_VERSION == 2
 
-const int peakCurrentResetPin = 2;
-unsigned long resetTime = 100;  // Reset pulse duration in milliseconds
+bool trainLeftInLastNSeconds(unsigned long n) {
+  unsigned long currentTime = millis();
+
+  for (int i = 0; i < 6; ++i) {
+    unsigned long timeSinceLastDeparture = currentTime - tracks[i].lastDepartureTimestamp;
+
+    if (timeSinceLastDeparture <= (n * 1000)) { // Convert seconds to milliseconds
+      return true; // At least one track had a departure in the last N seconds
+    }
+  }
+
+  return false; // No track had a departure in the last N seconds
+}
+
+
 
 bool isCurrentAboveThreshold() {
   int rawValue = analogRead(A2);              // Read the raw ADC value from A2
@@ -197,9 +191,6 @@ bool isCurrentAboveThreshold() {
 
   return aboveThreshold;
 }
-
-#endif
-
 
 
 void debugBezetmelders() {
@@ -223,16 +214,16 @@ void debugBezetmelders() {
 
 int aantalSporenMetStatus(SpoorStatus status) {
   int n = 0;
-  for (SpoorStatus st : spoorStatus) {
-    if (st == status) n++;
+  for (Track track : tracks) {
+    if (track.state == status) n++;
   }
   return n;
 }
 
 
-int magVertrekken(){
-     bool geenVertrekkendeTreinen =  aantalSporenMetStatus(SpoorStatus::vertrek) == 0;
-     return geenVertrekkendeTreinen && kopspoorUit == false; 
+int magVertrekken() {
+  bool geenVertrekkendeTreinen =  aantalSporenMetStatus(SpoorStatus::vertrek) == 0;
+  return geenVertrekkendeTreinen && kopspoorUit == false;
 }
 
 void debugRelays() {
@@ -260,9 +251,7 @@ void debugknop() {
       debug("knop ");
       debug(i + 1);
       if (knoppen[i]->getValue() == KNOP_INGEDUWD) {
-        debugln(": je hebt op de knop op gedrukt!");
-      }else{
-        debugln(": je hebt de knop losgelaten!");
+        debugln(": je hebt er op gedrukt!");
       }
       knoppen[i]->clearChangedFlag();
     }
@@ -288,13 +277,13 @@ void mcp23017Reset(MCP23017& mcp, int IPOL_A, int IPOL_B) {
   mcp.writeRegister(MCP23017Register::GPIO_B, 0);
 }
 
-int vindWillekeurigVrijSpoor(int gegevenSpoor, SpoorStatus spoorstatus[], int arraySize) {
+int vindWillekeurigVrijSpoor(int gegevenSpoor, Track tracks[], int arraySize) {
   int matchIndices[arraySize];  // array to store indices of matching elements
   int matchCount = 0;           // count of matching elements
 
   // Look for matching elements and store their indices in matchIndices
   for (int i = 0; i < arraySize; i++) {
-    if (i != gegevenSpoor && spoorstatus[i] == SpoorStatus::bezet) {
+    if (i != gegevenSpoor && tracks[i].state == SpoorStatus::bezet) {
       matchIndices[matchCount++] = i;
     }
   }
@@ -360,13 +349,6 @@ void setup() {
   bezetmelder7.setInput();
   bezetmelder8.setInput();
 
-
-#if BOARD_VERSION == 1
-  intBezetmelders = BasicIO(2, INPUT);
-  intDrukknop = BasicIO(3, INPUT);
-
-#endif
-
   debugln("INIT knop 9-12");
   knop9.setInput();
   knop10.setInput();
@@ -390,6 +372,7 @@ void setup() {
   led16.init(OUTPUT, 0);
 
   debugln(F("init leds"));
+
   for (IO* led : leds) {
     if (led == NULL) {
       Serial.print("led not initialized");
@@ -403,14 +386,11 @@ void setup() {
   pinMode(5, INPUT);
 
   debugln(F("init spoorstatus = initialisatie"));
-  for (SpoorStatus& status : spoorStatus) status = SpoorStatus::initialisatie;
+  for (Track track : tracks) track.state = SpoorStatus::initialisatie;
   debugln(F("EINDE setup"))
 
-
-#if BOARD_VERSIE == 2
-    pinMode(peakCurrentResetPin, OUTPUT);
+  pinMode(peakCurrentResetPin, OUTPUT);
   pinMode(A0, INPUT);
-#endif
 }
 
 #define LED_OFF 0
@@ -421,9 +401,9 @@ void setup() {
 
 int aantalSporenBezet() {
   int n = 0;
-  for (SpoorStatus st : spoorStatus) {
-    if (st == SpoorStatus::vrij) n++;
-    if (st == SpoorStatus::vertrek) return 6;
+  for (Track track : tracks) {
+    if (track.state == SpoorStatus::vrij) n++;
+    if (track.state == SpoorStatus::vertrek) return 6;
   }
   return 6 - n;
 }
@@ -456,7 +436,7 @@ void aantalSporenBezetDebug() {
     default:
       debug("er zijn ");
       debug(aantalSporenBezet());
-      debugln(" sporen bezet");
+      debugln("sporen bezet");
       break;
   }
 }
@@ -464,11 +444,8 @@ void aantalSporenBezetDebug() {
 int lastInrijSpoor = 0;
 
 
-
-
-
 void loop() {
-  
+
   debugRelays();
   debugBezetmelders();
   debugknop();
@@ -481,7 +458,7 @@ void loop() {
 
     debugln("kopspoor uit start");
   }
- 
+
   //cancel kopspoor uit
   if (knop11.getValue() == KNOP_INGEDUWD || kopspoorUit == true && bezetmelder7.getValue() == VRIJ) {
     relay7.setValue(0);
@@ -489,17 +466,17 @@ void loop() {
     debugln("kopspoor uit end");
   }
   //LED kopspoor bezet = continu, vertrek = knipper
-  if (spoorStatus[0] != SpoorStatus::wisselsRechtdoor) {
+  if (tracks[0].state != SpoorStatus::wisselsRechtdoor) {
     led7.setValue((knipper.getValue() && kopspoorUit) || (bezetmelder7.getValue() == BEZET && kopspoorUit == false));
   }
 #endif
-  
+
   //aansturen led na uitrijden sporen 1-6 (vrijgave sporen)
   led9.setValue(!bezetmelder9.getValue() == BEZET);
 
   //veiligheidspoor
 #if KOPSPOOR == 1
-  if (aantalSporenBezet() < 6 || spoorStatus[0] == SpoorStatus::wisselsRechtdoor) {
+  if (aantalSporenBezet() < 6 || tracks[0].state == SpoorStatus::wisselsRechtdoor) {
     relay8.setValue(RELAY_ON);
   } else {
     relay8.setValue(RELAY_OFF);
@@ -531,24 +508,23 @@ void loop() {
 
 
   for (int i = 0; i < 6; i++) {
-    switch (spoorStatus[i]) {
+    switch (tracks[i].state) {
       case SpoorStatus::vrij:
         setOutputs(LED_OFF, RELAY_OFF, Richting::afbuigend, i);
         if (bezetmelders[i]->getValue() == BEZET) {
-          spoorStatus[i] = SpoorStatus::bezet;
+          tracks[i].state = SpoorStatus::bezet;
           debugSpoornr(i);
           debugln(F(": bezet"));
           aantalSporenBezetDebug();
 
           if (knop12.getValue() == KNOP_INGEDUWD) {
-            int automatischVertrekSpoor = vindWillekeurigVrijSpoor(i, spoorStatus, 6);
-            if (automatischVertrekSpoor == i) delay(2500);
-            spoorStatus[automatischVertrekSpoor] = SpoorStatus::vertrek;
+            int automatischVertrekSpoor = vindWillekeurigVrijSpoor(i, tracks, 6);
+            tracks[automatischVertrekSpoor].state = SpoorStatus::vertrek;
           }
         }
 #if KOPSPOOR == 1
         if (knop7.getValue() == KNOP_INGEDUWD && bezetmelder7.getValue() == VRIJ || kopspoorIn == true) {
-          spoorStatus[i] = SpoorStatus::wisselsRechtdoor;
+          tracks[i].state = SpoorStatus::wisselsRechtdoor;
           debugln("status vrij -> wissel rechtdoor");
           kopspoorIn = true;
         }
@@ -562,7 +538,7 @@ void loop() {
         setOutputs(0, RELAY_OFF, Richting::rechtdoor, i);
 
         if (knop9.getValue() == KNOP_INGEDUWD || bezetmelder7.getValue() == BEZET) {
-          spoorStatus[i] = SpoorStatus::initialisatie;
+          tracks[i].state = SpoorStatus::initialisatie;
           led7.setValue(bezetmelder7.getValue() == BEZET ? 1 : 0);
           debugln(bezetmelder7.getValue() == BEZET ? "END kopspoor in" : "cancel kopspoor in");
           kopspoorIn = false;
@@ -578,14 +554,15 @@ void loop() {
       case SpoorStatus::bezet:
         setOutputs(LED_ON, RELAY_OFF, Richting::rechtdoor, i);
         if (knoppen[i]->getValue() == KNOP_INGEDUWD && magVertrekken()) {
-          spoorStatus[i] = SpoorStatus::vertrek;
+          tracks[i].state = SpoorStatus::vertrek;
           debugSpoornr(i);
           debugln(F(": vertrekken"));
+          tracks[i].lastDepartureTimestamp = millis();
         }
 
 #if KOPSPOOR == 1
         if ((knop7.getValue() == KNOP_INGEDUWD || kopspoorIn == true) && bezetmelder7.getValue() == VRIJ) {
-          spoorStatus[i] = SpoorStatus::wisselsRechtdoor;
+          tracks[i].state = SpoorStatus::wisselsRechtdoor;
           debugln("status bezet -> wissel rechtdoor");
         }
 #endif
@@ -595,7 +572,7 @@ void loop() {
 
         setOutputs(knipper.getValue(), RELAY_ON, Richting::rechtdoor, i);
         if (!bezetmelder9.getValue() == BEZET) {
-          spoorStatus[i] = SpoorStatus::vrij;
+          tracks[i].state = SpoorStatus::vrij;
           aantalSporenBezetDebug();
         }
         break;
@@ -605,10 +582,10 @@ void loop() {
         debugln(F(" initialisatie: "));
 
         if (bezetmelders[i]->getValue() == BEZET) {
-          spoorStatus[i] = SpoorStatus::bezet;
+          tracks[i].state = SpoorStatus::bezet;
           wissels[i]->zetrechtdoor();
         } else {
-          spoorStatus[i] = SpoorStatus::vrij;
+          tracks[i].state = SpoorStatus::vrij;
           wissels[i]->zetafbuigend();
         }
         break;
