@@ -119,6 +119,8 @@ BasicIO relay6 = BasicIO(A2, OUTPUT);
 BasicIO relay7 = BasicIO(A1, OUTPUT);
 BasicIO relay8 = BasicIO(2, OUTPUT);
 
+BasicIO auxSwitch = BasicIO(5, INPUT); 
+
 
 StopWatch stopWatch = StopWatch();
 Knipper knipper = Knipper(100, 500);
