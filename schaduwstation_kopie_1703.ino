@@ -1,5 +1,3 @@
-#include "boardDefenitions.h"
-
 #include "IO.h"
 #include "Track.h"
 #include "Wissel.h"
@@ -49,16 +47,6 @@ KopSpoorStatus kopSpoorStatus = KopSpoorStatus::init;
 
 #endif
 
-#if BOARD_VERSIE == 1
-
-BasicIO intBezetmelders;
-BasicIO intDrukknop;
-BasicIO buzzer = BasicIO(-1, INPUT);
-
-#endif
-
-
-#if BOARD_VERSIE == 2
 
 const int analogInputPin = A2;      // Analog input pin for current measurement
 const int peakCurrentResetPin = 2;  // Pin for the reset pulse
@@ -69,7 +57,6 @@ const int buzzerPin = 4;
 
 BasicIO buzzer = BasicIO(buzzerPin, OUTPUT);
 
-#endif
 
 MCP23017 mcp2 = MCP23017(0x21);
 MCP23017 mcp1 = MCP23017(0x20);
@@ -138,18 +125,7 @@ BasicIO relay4 = BasicIO(13, OUTPUT);
 BasicIO relay5 = BasicIO(A3, OUTPUT);
 BasicIO relay6 = BasicIO(A2, OUTPUT);
 BasicIO relay7 = BasicIO(A1, OUTPUT);
-
-
-#if BOARD_VERSIE == 1
-
-BasicIO relay8 = BasicIO(A0, OUTPUT);
-
-#elif BOARD_VERSIE == 2
-
 BasicIO relay8 = BasicIO(2, OUTPUT);
-
-#endif
-
 
 
 StopWatch stopWatch = StopWatch();
@@ -176,12 +152,6 @@ bool kopspoorIn = false;
 
 #endif
 
-
-#if BOARD_VERSION == 2
-
-const int peakCurrentResetPin = 2;
-unsigned long resetTime = 100;  // Reset pulse duration in milliseconds
-
 bool isCurrentAboveThreshold() {
   int rawValue = analogRead(A2);              // Read the raw ADC value from A2
   int millivolts = (rawValue * 5000) / 1023;  // Convert raw value to millivolts (assuming 10-bit ADC and 5V reference)
@@ -197,9 +167,6 @@ bool isCurrentAboveThreshold() {
 
   return aboveThreshold;
 }
-
-#endif
-
 
 
 void debugBezetmelders() {
@@ -358,13 +325,6 @@ void setup() {
   bezetmelder7.setInput();
   bezetmelder8.setInput();
 
-
-#if BOARD_VERSION == 1
-  intBezetmelders = BasicIO(2, INPUT);
-  intDrukknop = BasicIO(3, INPUT);
-
-#endif
-
   debugln("INIT knop 9-12");
   knop9.setInput();
   knop10.setInput();
@@ -388,6 +348,7 @@ void setup() {
   led16.init(OUTPUT, 0);
 
   debugln(F("init leds"));
+  
   for (IO* led : leds) {
     if (led == NULL) {
       Serial.print("led not initialized");
@@ -404,11 +365,8 @@ void setup() {
   for (SpoorStatus& status : spoorStatus) status = SpoorStatus::initialisatie;
   debugln(F("EINDE setup"))
 
-
-#if BOARD_VERSIE == 2
-    pinMode(peakCurrentResetPin, OUTPUT);
+  pinMode(peakCurrentResetPin, OUTPUT);
   pinMode(A0, INPUT);
-#endif
 }
 
 #define LED_OFF 0
@@ -460,9 +418,6 @@ void aantalSporenBezetDebug() {
 }
 
 int lastInrijSpoor = 0;
-
-
-
 
 
 void loop() {
