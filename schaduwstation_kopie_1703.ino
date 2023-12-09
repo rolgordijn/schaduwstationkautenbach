@@ -11,18 +11,20 @@
 
 //#pragma GCC optimize("-O")
 
-//wisselsrechtdoor, enkel bij kopspoor gebruikt. 
+//wisselsrechtdoor, enkel bij kopspoor gebruikt.
 enum class SpoorStatus { initialisatie,
                          vrij,
                          bezet,
                          vertrek,
                          wisselsRechtdoor
                        };
-                       
+
 struct Track {   // Structure declaration
   long lastDepartureTimestamp;
   SpoorStatus state;
 };
+
+long globalLastDepartureTime;
 
 
 Track tracks[6];
@@ -119,7 +121,7 @@ BasicIO relay6 = BasicIO(A2, OUTPUT);
 BasicIO relay7 = BasicIO(A1, OUTPUT);
 BasicIO relay8 = BasicIO(2, OUTPUT);
 
-BasicIO auxSwitch = BasicIO(5, INPUT); 
+BasicIO auxSwitch = BasicIO(5, INPUT);
 
 
 StopWatch stopWatch = StopWatch();
@@ -300,16 +302,16 @@ void setup() {
 
   delay(100);
   debugln("init wissels");
-  for (IO* wissel: wissels) wissel->init();
- 
-   debugln(F("INIT led 5-8"));
+  for (IO* wissel : wissels) wissel->init();
+
+  debugln(F("INIT led 5-8"));
   for (IO* led : leds)led->init(OUTPUT, 0);
 
   debugln("INIT knop 1-12");
   for (IO* knop : knoppen)   knop->setInput();
 
   debugln("INIT bezetmelder 1-12");
-  for(IO* bezetmelder : bezetmelders) bezetmelder->setInput();
+  for (IO* bezetmelder : bezetmelders) bezetmelder->setInput();
 
   debugln(F("init leds"));
 
@@ -411,22 +413,11 @@ void loop() {
   led9.setValue(!bezetmelder9.getValue() == BEZET);
 
   //veiligheidspoor
-#if KOPSPOOR == 1
-  if (aantalSporenBezet() < 6 || tracks[0].state == SpoorStatus::wisselsRechtdoor) {
+  if (aantalSporenBezet() < 6 || (KOPSPOOR == 1 && tracks[0].state == SpoorStatus::wisselsRechtdoor)) {
     relay8.setValue(RELAY_ON);
   } else {
     relay8.setValue(RELAY_OFF);
   }
-
-#else
-
-  if (aantalSporenBezet() < 6) {
-    relay8.setValue(RELAY_ON);
-  } else {
-    relay8.setValue(RELAY_OFF);
-  }
-
-#endif
   //inrijspoor led
 
   led8.setValue(
