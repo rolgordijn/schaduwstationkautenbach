@@ -229,6 +229,7 @@ void debugRelays() {
 void debugknop() {
 #if DEBUG == 1
   for (int i = 0; i < 12; i++) {
+    knoppen[i]->getValue();
     if (knoppen[i]->didChange()) {
       debug("knop ");
       debug(i + 1);

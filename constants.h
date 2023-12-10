@@ -10,5 +10,5 @@
 #define KNOP_INGEDUWD 0
 #define KNOP_NIET_INGEDUWD 1
 
-#define DEBUG 0
+#define DEBUG 1
 #define KOPSPOOR 1
