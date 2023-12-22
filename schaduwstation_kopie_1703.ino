@@ -217,6 +217,8 @@ int aantalSporenMetStatus(SpoorStatus status) {
 bool magVertrekken() {
   if (aantalSporenMetStatus(SpoorStatus::vertrek)) return false;
   if (kopSpoorStatus == KopSpoorStatus::uit) return false;
+  if (uitrijspoor.state == SpoorStatus::bezet) return false; 
+  if (uitrijspoor.state == SpoorStatus::vertrek) return false; 
   return true;
 }
 
