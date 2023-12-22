@@ -295,52 +295,93 @@ int vindWillekeurigBezetSpoor(int gegevenSpoor, Track tracks[], int arraySize) {
   return gegevenSpoor;
 }
 
-
-
-void setup() {
-  Serial.begin(115200);
-  debugln("start init");
+void initializeI2C() {
   debugln("INIT I2C");
   Wire.begin();
+}
 
+
+void resetMCP23017(MCP23017& mcp) {
   mcp23017Reset(mcp0, 0, 0);
   mcp23017Reset(mcp1, 0, 0);
   mcp23017Reset(mcp2, 0, 0);
+}
 
-  delay(100);
+void initializeWissels() {
   debugln("init wissels");
-  for (Wissel* wissel : wissels) wissel->init();
+  for (Wissel* wissel : wissels) {
+    wissel->init();
+  }
+}
 
+void initializeLeds() {
   debugln(F("INIT led 5-8"));
-  for (IO* led : leds) led->init(OUTPUT, 0);
+  for (IO* led : leds) {
+    led->init(OUTPUT, 0);
+  }
+}
 
+void initializeKnoppen() {
   debugln("INIT knop 1-12");
-  for (IO* knop : knoppen) knop->setInput();
+  for (IO* knop : knoppen) {
+    knop->setInput();
+  }
+}
 
+void initializeBezetmelders() {
   debugln("INIT bezetmelder 1-12");
-  for (IO* bezetmelder : bezetmelders) bezetmelder->setInput();
+  for (IO* bezetmelder : bezetmelders) {
+    bezetmelder->setInput();
+  }
+}
 
+
+void checkLeds() {
   debugln(F("init leds"));
-
   for (IO* led : leds) {
     led->setValue(1);
     delay(100);
   }
-  for (IO* led : leds) led->setValue(0);
+  for (IO* led : leds) {
+    led->setValue(0);
+  }
   debugln(F("CLEAR leds"));
+}
 
-  debugln(F("init spoorstatus = initialisatie"));
-  for (Track track : tracks) track.state = SpoorStatus::initialisatie;
 
-  kopSpoorStatus = (bezetmelder7.getValue() == BEZET) ? KopSpoorStatus::bezet : KopSpoorStatus::vrij;
-
+void initializePins() {
   pinMode(peakCurrentResetPin, OUTPUT);
   pinMode(A0, INPUT);
+}
 
-  uitrijspoor.state = !bezetmelder9.getValue() == BEZET ? SpoorStatus::bezet : SpoorStatus::vrij;
-  uitrijspoor.lastDepartureTimestamp == millis();
+void initializeUitrijspoor() {
+  uitrijspoor.state = (bezetmelder9.getValue() != BEZET) ? SpoorStatus::bezet : SpoorStatus::vrij;
+  uitrijspoor.lastDepartureTimestamp = millis();
+}
 
-  debugln(F("EINDE setup"))
+void initUART(){
+  Serial.begin(115200);
+  debugln("start init");
+}
+
+
+void setup() {
+  initUART();
+  initializeI2C();
+  resetMCP23017(mcp0);
+  resetMCP23017(mcp1);
+  resetMCP23017(mcp2);
+  delay(100);
+  initializeWissels();
+  initializeLeds();
+  initializeKnoppen();
+  initializeBezetmelders();
+  checkLeds();
+  initializeTracks();
+  initializeKopSpoorStatus();
+  initializePins();
+  initializeUitrijspoor();
+  debugln(F("EINDE setup"));
 }
 
 #define LED_OFF 0
@@ -391,7 +432,7 @@ void aantalSporenBezetDebug() {
   }
 }
 
-int lastInrijSpoor = 0;
+int inRijSpoorBezetmelder = 0;
 
 
 void loop() {
@@ -449,9 +490,9 @@ void loop() {
 
   //debug start stop inrijspoor
 #if DEBUG == 1
-  if (relay8.getValue() != lastInrijSpoor) {
+  if (relay8.getValue() != inRijSpoorBezetmelder) {
     debugln(relay8.getValue() == RELAY_ON ? "inrijspoor start" : "inrijspoor stop");
-    lastInrijSpoor = relay8.getValue();
+    inRijSpoorBezetmelder = relay8.getValue();
   }
 #endif
 
