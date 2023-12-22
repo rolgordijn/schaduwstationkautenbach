@@ -217,8 +217,8 @@ int aantalSporenMetStatus(SpoorStatus status) {
 bool magVertrekken() {
   if (aantalSporenMetStatus(SpoorStatus::vertrek)) return false;
   if (kopSpoorStatus == KopSpoorStatus::uit) return false;
-  if (uitrijspoor.state == SpoorStatus::bezet) return false; 
-  if (uitrijspoor.state == SpoorStatus::vertrek) return false; 
+  if (uitrijspoor.state == SpoorStatus::bezet) return false;
+  if (uitrijspoor.state == SpoorStatus::vertrek) return false;
   return true;
 }
 
@@ -230,9 +230,9 @@ void debugRelays() {
       debug(i + 1);
 
       if (relays[i]->getValue()) {
-        debugln(" aan");
+        debugln(" :aan");
       } else {
-        debugln(" uit");
+        debugln(" :uit");
       }
       relays[i]->clearChangedFlag();
     }
@@ -309,6 +309,13 @@ void resetMCP23017(MCP23017& mcp) {
   mcp23017Reset(mcp2, 0, 0);
 }
 
+void initializeTracks() {
+  debugln(F("init spoorstatus = initialisatie"));
+  for (Track& track : tracks) {
+    track.state = SpoorStatus::initialisatie;
+  }
+}
+
 void initializeWissels() {
   debugln("init wissels");
   for (Wissel* wissel : wissels) {
@@ -356,12 +363,19 @@ void initializePins() {
   pinMode(A0, INPUT);
 }
 
+void initializeKopSpoorStatus() {
+
+#if KOPSPOOR == 1
+  kopSpoorStatus = (bezetmelder7.getValue() == BEZET) ? KopSpoorStatus::bezet : KopSpoorStatus::vrij;
+#endif
+}
+
 void initializeUitrijspoor() {
   uitrijspoor.state = (bezetmelder9.getValue() != BEZET) ? SpoorStatus::bezet : SpoorStatus::vrij;
   uitrijspoor.lastDepartureTimestamp = millis();
 }
 
-void initUART(){
+void initUART() {
   Serial.begin(115200);
   debugln("start init");
 }
