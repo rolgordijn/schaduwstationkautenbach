@@ -12,3 +12,9 @@
 
 #define DEBUG 1
 #define KOPSPOOR 1
+
+#define LED_OFF 0
+#define LED_ON 1
+
+#define RELAY_ON 1
+#define RELAY_OFF 0

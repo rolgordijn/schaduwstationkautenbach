@@ -386,11 +386,6 @@ void setup() {
   debugln(F("EINDE setup"));
 }
 
-#define LED_OFF 0
-#define LED_ON 1
-
-#define RELAY_ON 1
-#define RELAY_OFF 0
 
 int aantalSporenBezet() {
   int n = 0;
