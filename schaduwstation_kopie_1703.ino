@@ -194,9 +194,9 @@ void debugBezetmelders() {
       debug(i + 1);
 
       if (bezetmelders[i]->getValue()) {
-        debugln(" :bezet ");
+        debugln(": bezet ");
       } else {
-        debugln(" :vrij ");
+        debugln(": vrij ");
       }
       bezetmelders[i]->clearChangedFlag();
     }
@@ -230,9 +230,9 @@ void debugRelays() {
       debug(i + 1);
 
       if (relays[i]->getValue()) {
-        debugln(" :aan");
+        debugln(": aan");
       } else {
-        debugln(" :uit");
+        debugln(": uit");
       }
       relays[i]->clearChangedFlag();
     }
@@ -373,6 +373,8 @@ void initializeKopSpoorStatus() {
 void initializeUitrijspoor() {
   uitrijspoor.state = (bezetmelder9.getValue() != BEZET) ? SpoorStatus::bezet : SpoorStatus::vrij;
   uitrijspoor.lastDepartureTimestamp = millis();
+  debug("Uitrijspoor timestamp ms :");
+  debugln(uitrijspoor.lastDepartureTimestamp);
 }
 
 void initUART() {
@@ -397,7 +399,7 @@ void setup() {
   initializeKopSpoorStatus();
   initializePins();
   initializeUitrijspoor();
-  debugln(F("EINDE setup"));
+  debugln(F("==========INDE setup=========="));
 }
 
 
@@ -438,7 +440,7 @@ void aantalSporenBezetDebug() {
     default:
       debug("er zijn ");
       debug(aantalSporenBezet());
-      debugln("sporen bezet");
+      debugln(" sporen bezet");
       break;
   }
 }
@@ -452,12 +454,24 @@ void loop() {
   debugBezetmelders();
   debugknop();
 
-  if (uitrijspoor.state == SpoorStatus::bezet && !bezetmelder9.getValue() == BEZET) {
+  if ((uitrijspoor.state == SpoorStatus::bezet) && (!bezetmelder9.getValue() == BEZET)) {
     uitrijspoor.lastDepartureTimestamp = millis();
-    uitrijspoor.state == SpoorStatus::vertrek;
+    uitrijspoor.state = SpoorStatus::vertrek;
+    debugln("Uitrijspoor status: vertrek");
+    debug("Uitrijspoor timestamp ms :");
+    debugln(uitrijspoor.lastDepartureTimestamp);
   }
-  if (uitrijspoor.state == SpoorStatus::vertrek && !bezetmelder9.getValue() == VRIJ && (millis() - uitrijspoor.lastDepartureTimestamp > 1000)) {
-    uitrijspoor.state == SpoorStatus::vrij;
+
+    if ((uitrijspoor.state == SpoorStatus::vertrek) && (!bezetmelder9.getValue() == BEZET)) {
+    uitrijspoor.lastDepartureTimestamp = millis();
+    uitrijspoor.state = SpoorStatus::vertrek;
+    debugln("Uitrijspoor status: vertrek");
+    debug("Uitrijspoor timestamp ms :");
+    debugln(uitrijspoor.lastDepartureTimestamp);
+  }
+  if ((uitrijspoor.state == SpoorStatus::vertrek) && (!bezetmelder9.getValue() == VRIJ) && (millis() - uitrijspoor.lastDepartureTimestamp > 5000)) {
+    uitrijspoor.state = SpoorStatus::vrij;
+    debugln("Uitrijspoor status: vrij");
   }
 
 #if KOPSPOOR == 1
@@ -482,7 +496,26 @@ void loop() {
 
   //aansturen led na uitrijden sporen 1-6 (vrijgave sporen)
 
-  led9.setValue(uitrijspoor.state == SpoorStatus::vertrek);
+
+  switch (uitrijspoor.state) {
+    case SpoorStatus::vertrek:
+      led9.setValue(knipper.getValue());
+      break;
+
+    case SpoorStatus::bezet:
+      led9.setValue(LED_ON);
+      break;
+
+    case SpoorStatus::vrij:
+      led9.setValue(LED_OFF);
+      break;
+
+      // Add more cases as needed for additional states
+
+    default:
+      // Handle unexpected or undefined states if necessary
+      break;
+  }
 
 
 
@@ -502,7 +535,7 @@ void loop() {
   //debug start stop inrijspoor
 #if DEBUG == 1
   if (relay8.getValue() != inRijSpoorBezetmelder) {
-    debugln(relay8.getValue() == RELAY_ON ? "inrijspoor start" : "inrijspoor stop");
+    debugln(relay8.getValue() == RELAY_ON ? "inrijspoor :start" : "inrijspoor :stop");
     inRijSpoorBezetmelder = relay8.getValue();
   }
 #endif
@@ -521,6 +554,7 @@ void loop() {
           if (knop12.getValue() == KNOP_INGEDUWD) {
             int automatischVertrekSpoor = vindWillekeurigBezetSpoor(i, tracks, 6);
             tracks[automatischVertrekSpoor].state = SpoorStatus::vertrek;
+            uitrijspoor.state = SpoorStatus::bezet;
           }
         }
 #if KOPSPOOR == 1
@@ -565,6 +599,7 @@ void loop() {
           debugln(F(": vertrekken"));
           tracks[i].lastDepartureTimestamp = millis();
           uitrijspoor.state = SpoorStatus::bezet;
+          debugln(F("Uitrijspoor :bezet"))
         }
 
 #if KOPSPOOR == 1
@@ -586,7 +621,7 @@ void loop() {
       case SpoorStatus::initialisatie:
       default:
         debugSpoornr(i);
-        debugln(F(" initialisatie: "));
+        debugln(F(": initialisatie "));
 
         if (bezetmelders[i]->getValue() == BEZET) {
           tracks[i].state = SpoorStatus::bezet;
