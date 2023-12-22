@@ -194,9 +194,9 @@ void debugBezetmelders() {
       debug(i + 1);
 
       if (bezetmelders[i]->getValue()) {
-        debugln(" bezet ");
+        debugln(" :bezet ");
       } else {
-        debugln(" vrij ");
+        debugln(" :vrij ");
       }
       bezetmelders[i]->clearChangedFlag();
     }
