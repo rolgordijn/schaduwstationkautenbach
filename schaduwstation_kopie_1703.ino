@@ -186,22 +186,37 @@ bool isCurrentAboveThreshold() {
 }
 
 
-void debugBezetmelders() {
+
+
+
+void debugIO(const char* label, const char* onString, const char* offString, IO** ioArray, int arraySize) {
 #if DEBUG == 1
-  for (int i = 0; i < 8; i++) {
-    if (bezetmelders[i]->didChange()) {
-      debug("bezetmelder ");
+  for (int i = 0; i < arraySize; i++) {
+    if (ioArray[i]->didChange()) {
+      debug(label);
       debug(i + 1);
 
-      if (bezetmelders[i]->getValue()) {
-        debugln(": bezet ");
+      if (ioArray[i]->getValue()) {
+        debugln(onString);
       } else {
-        debugln(": vrij ");
+        debugln(offString);
       }
-      bezetmelders[i]->clearChangedFlag();
+      ioArray[i]->clearChangedFlag();
     }
   }
 #endif
+}
+
+void debugRelays() {
+  debugIO("relay ", ": aan", ": uit", relays, 8);
+}
+
+void debugBezetmelders() {
+  debugIO("bezetmelder ", ": bezet", ": vrij", bezetmelders, 8);
+}
+
+void debugKnoppen() {
+  debugIO("knop ", ": je hebt er op gedrukt!", ": je hebt de knop losgelaten", knoppen, 12);
 }
 
 
@@ -222,48 +237,6 @@ bool magVertrekken() {
   return true;
 }
 
-void debugRelays() {
-#if DEBUG == 1
-  for (int i = 0; i < 8; i++) {
-    if (relays[i]->didChange()) {
-      debug("relay ");
-      debug(i + 1);
-
-      if (relays[i]->getValue()) {
-        debugln(": aan");
-      } else {
-        debugln(": uit");
-      }
-      relays[i]->clearChangedFlag();
-    }
-  }
-#endif
-}
-
-void debugknop() {
-#if DEBUG == 1
-  for (int i = 0; i < 12; i++) {
-    knoppen[i]->getValue();
-    if (knoppen[i]->didChange()) {
-      debug("knop ");
-      debug(i + 1);
-      if (knoppen[i]->getValue() == KNOP_INGEDUWD) {
-        debugln(": je hebt er op gedrukt!");
-      } else {
-        debugln(": je hebt de knop losgelaten");
-      }
-      knoppen[i]->clearChangedFlag();
-    }
-  }
-#endif
-}
-
-
-void clearBuffer() {
-  while (Serial.available()) {
-    Serial.read();
-  }
-}
 
 void mcp23017Reset(MCP23017& mcp, int IPOL_A, int IPOL_B) {
   debugln(F("reset mcp23017"));
@@ -519,12 +492,14 @@ void loop() {
 
 
 
-  //veiligheidspoor
+  //inrijspoor
   if (aantalSporenBezet() < 6 || (KOPSPOOR == 1 && tracks[0].state == SpoorStatus::wisselsRechtdoor)) {
     relay8.setValue(RELAY_ON);
   } else {
     relay8.setValue(RELAY_OFF);
   }
+
+  
   //inrijspoor led
 
   led8.setValue(
