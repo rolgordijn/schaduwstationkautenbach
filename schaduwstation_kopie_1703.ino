@@ -48,6 +48,8 @@ const int analogInputPin = A2;      // Analog input pin for current measurement
 const int peakCurrentResetPin = 2;  // Pin for the reset pulse
 unsigned long resetTime = 100;      // Reset pulse duration in milliseconds
 
+static bool bezetmelder8LastState = VRIJ;
+
 const int buzzerPin = 4;
 
 
@@ -148,6 +150,7 @@ IO* leds[] = { &led1, &led2, &led3, &led4, &led5, &led6, &led7, &led8, &led9, &l
 
 
 Track uitrijspoor;
+Track inrijspoor;
 
 
 
@@ -274,6 +277,17 @@ void mcp23017Reset(MCP23017& mcp, int IPOL_A, int IPOL_B) {
   mcp.writeRegister(MCP23017Register::GPPU_B, 0);
   mcp.writeRegister(MCP23017Register::GPIO_A, 0);
   mcp.writeRegister(MCP23017Register::GPIO_B, 0);
+}
+
+int zoekOpstelSpoorMetStatus(SpoorStatus status) {
+  int searchIndex = -1;
+  for (int i = 0; i < 6; ++i) {
+    if (tracks[i].state == status) {
+      searchIndex = i;
+      break;  // Found the first track with state 'vertrek'
+    }
+  }
+  return searchIndex;
 }
 
 int vindWillekeurigBezetSpoor(int gegevenSpoor, Track tracks[], int arraySize) {
@@ -449,11 +463,47 @@ void aantalSporenBezetDebug() {
 int inRijSpoorBezetmelder = 0;
 
 
+
+
+
+bool shouldTurnOnOffRelay8(void) {
+  if (tracks[0].state == SpoorStatus::wisselsRechtdoor) {
+    return true;
+  }
+
+  if (zoekOpstelSpoorMetStatus(SpoorStatus::vrij) < 0) {
+    return false;
+  }
+
+  if (zoekOpstelSpoorMetStatus(SpoorStatus::vertrek) < 0 && inrijspoor.state == SpoorStatus::vrij) {
+    return true;
+  }
+
+  if (zoekOpstelSpoorMetStatus(SpoorStatus::vrij) < zoekOpstelSpoorMetStatus(SpoorStatus::vertrek) && inrijspoor.state == SpoorStatus::vrij) {
+    return true;
+  }
+
+  return false;
+}
+
+
 void loop() {
   if (auxSwitch.getValue()) {
     debugRelays();
     debugBezetmelders();
     debugknop();
+
+    if (bezetmelder8.getValue() == BEZET && inrijspoor.state == SpoorStatus::vrij) {
+      inrijspoor.state = SpoorStatus::bezet;
+    }
+
+    if (bezetmelder8.getValue() == VRIJ && inrijspoor.state == SpoorStatus::bezet) {
+      inrijspoor.state = SpoorStatus::vertrek;
+    }
+
+    if (bezetmelder8.getValue() == BEZET && inrijspoor.state == SpoorStatus::bezet) {
+      inrijspoor.state = SpoorStatus::bezet;
+    }
 
     if ((uitrijspoor.state == SpoorStatus::bezet) && (!bezetmelder9.getValue() == BEZET)) {
       uitrijspoor.lastDepartureTimestamp = millis();
@@ -518,14 +568,8 @@ void loop() {
         break;
     }
 
-
-
     //veiligheidspoor
-    if (aantalSporenBezet() < 6 || (KOPSPOOR == 1 && tracks[0].state == SpoorStatus::wisselsRechtdoor)) {
-      relay8.setValue(RELAY_ON);
-    } else {
-      relay8.setValue(RELAY_OFF);
-    }
+    relay8.setValue(shouldTurnOnOffRelay8());
     //inrijspoor led
 
     led8.setValue(
@@ -548,6 +592,8 @@ void loop() {
           setOutputs(LED_OFF, RELAY_OFF, Richting::afbuigend, i);
           if (bezetmelders[i]->getValue() == BEZET) {
             tracks[i].state = SpoorStatus::bezet;
+            inrijspoor.state = SpoorStatus::vrij;
+
             debugSpoornr(i);
             debugln(F(": bezet"));
             aantalSporenBezetDebug();
@@ -575,6 +621,7 @@ void loop() {
 
           if (knop9.getValue() == KNOP_INGEDUWD || bezetmelder7.getValue() == BEZET) {
             tracks[i].state = SpoorStatus::initialisatie;
+            inrijspoor.state == SpoorStatus::vrij; 
 
             int ledValue = (bezetmelder7.getValue() == BEZET) ? 1 : 0;
             led7.setValue(ledValue);
