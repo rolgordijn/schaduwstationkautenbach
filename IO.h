@@ -10,7 +10,7 @@ class IO {
     bool pinState;
     bool changed;
 
-    BezetmelderState* state;
+   
     
   public:
     IO();
