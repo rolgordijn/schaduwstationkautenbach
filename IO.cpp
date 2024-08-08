@@ -23,3 +23,4 @@ void IO::clearChangedFlag() {
 bool IO::didChange(void) {
   return this->changed;
 }
+

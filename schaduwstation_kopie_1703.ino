@@ -27,6 +27,11 @@ struct Track {  // Structure declaration
 long globalLastDepartureTime;
 
 
+
+
+
+
+
 Track tracks[6];
 
 #if KOPSPOOR == 1
@@ -42,6 +47,8 @@ enum class KopSpoorStatus { init,
 KopSpoorStatus kopSpoorStatus = KopSpoorStatus::init;
 
 #endif
+
+
 
 
 const int analogInputPin = A2;      // Analog input pin for current measurement
@@ -211,15 +218,6 @@ int aantalSporenMetStatus(SpoorStatus status) {
     if (track.state == status) n++;
   }
   return n;
-}
-
-
-bool magVertrekken() {
-  if (aantalSporenMetStatus(SpoorStatus::vertrek)) return false;
-  if (kopSpoorStatus == KopSpoorStatus::uit) return false;
-  if (uitrijspoor.state == SpoorStatus::bezet) return false;
-  if (uitrijspoor.state == SpoorStatus::vertrek) return false;
-  return true;
 }
 
 void debugRelays() {
@@ -400,7 +398,7 @@ void setup() {
   initializePins();
   initializeUitrijspoor();
   auxSwitch.setInput();
-  debugln(F("==========INDE setup=========="));
+  debugln(F("==========EINDE setup=========="));
 }
 
 
@@ -447,12 +445,21 @@ void aantalSporenBezetDebug() {
 }
 
 int inRijSpoorBezetmelder = 0;
+bool automatischVertrekken = false;
 
+bool magVertrekken() {
+  if (aantalSporenMetStatus(SpoorStatus::vertrek)) return false;
+  if (kopSpoorStatus == KopSpoorStatus::uit) return false;
+  if (uitrijspoor.state == SpoorStatus::bezet) return false;
+  if (uitrijspoor.state == SpoorStatus::vertrek) return false;
+  return true;
+}
 
 void loop() {
   if (auxSwitch.getValue()) {
     debugRelays();
     debugBezetmelders();
+
     debugknop();
 
     if ((uitrijspoor.state == SpoorStatus::bezet) && (!bezetmelder9.getValue() == BEZET)) {
@@ -552,7 +559,8 @@ void loop() {
             debugln(F(": bezet"));
             aantalSporenBezetDebug();
 
-            if (knop12.getValue() == KNOP_INGEDUWD) {
+            if (knop12.getValue() == KNOP_INGEDUWD && magVertrekken()) {
+              automatischVertrekken = true; 
               int automatischVertrekSpoor = vindWillekeurigBezetSpoor(i, tracks, 6);
               tracks[automatischVertrekSpoor].state = SpoorStatus::vertrek;
               uitrijspoor.state = SpoorStatus::bezet;
@@ -612,12 +620,18 @@ void loop() {
 
           break;
         case SpoorStatus::vertrek:
-
+          if(knop12.getValue() == KNOP_NIET_INGEDUWD && automatischVertrekken == true ){
+            tracks[i].state = SpoorStatus::bezet; 
+             automatischVertrekken= false; 
+            
+          }
           setOutputs(knipper.getValue(), RELAY_ON, Richting::rechtdoor, i);
           if (uitrijspoor.state == SpoorStatus::vrij) {
             tracks[i].state = SpoorStatus::vrij;
             aantalSporenBezetDebug();
+             automatischVertrekken= false; 
           }
+         
           break;
         case SpoorStatus::initialisatie:
         default:
