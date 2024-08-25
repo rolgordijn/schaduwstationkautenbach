@@ -10,10 +10,12 @@ IO::IO() {
 
 void IO::setHigh() {
   setValue(1);
+  debugMsg->updateMessage(1);
 }
 
 void IO:: setLow() {
   setValue(0);
+  debugMsg->updateMessage(0);
 }
 
 void IO::clearChangedFlag() {
@@ -24,3 +26,10 @@ bool IO::didChange(void) {
   return this->changed;
 }
 
+void IO::setDebugMessage(IODebugMessage* debugMsg){
+    this->debugMsg = debugMsg;
+ }
+
+void IO::printDebugMsg(Print &printer = Serial){
+  printer.println(debugMsg->getMessage());
+}

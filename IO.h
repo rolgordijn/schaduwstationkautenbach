@@ -1,6 +1,7 @@
 #pragma once
 
 #include "MCP23017.h"
+#include "IODebugMessage.h"
 
 
 class IO {
@@ -9,7 +10,7 @@ class IO {
     bool tris;
     bool pinState;
     bool changed;
-
+    IODebugMessage* debugMsg;
    
     
   public:
@@ -23,8 +24,12 @@ class IO {
     virtual void setOutput()  = 0;
     virtual void setPinMode(int dir) =   0;
     virtual int getPinMode (void) = 0;
+
+    void setDebugMessage(IODebugMessage* debugMsg); 
     void clearChangedFlag();
     bool didChange(void);
+
+    void printDebugMsg(Print& printer); 
 };
 
 class BasicIO : public IO {
