@@ -23,14 +23,14 @@ void IO::setPinMode(int dir) {
 
 void IO::setHigh(void) {
   if ((pinState == HIGH) return;
-  setPinState(HIGH ^ invertedLogic);
-  pinState = HIGH ^ invertedLogic;
+  setPinState(HIGH);
+  pinState = HIGH;
   changed = true;
 }
 void IO::setLow(void) {
   if (pinState == LOW) return;
-  setPinState(pinState ^ invertedLogic);
-  pinState = LOW ^ invertedLogic;
+  setPinState(pinState);
+  pinState = LOW;
   changed = true;
 }
 
