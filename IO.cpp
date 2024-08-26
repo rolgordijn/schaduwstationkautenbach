@@ -6,6 +6,8 @@ IO::IO() {
   tris = 1;
   pinState = 0;
   changed = 0;
+
+  debugMsg = nullptr;
 }
 
 void IO::init(int dir, int level) {
@@ -33,8 +35,7 @@ void IO::setLow(void) {
   setPinState(LOW);
   pinState = LOW;
   changed = true;
-   debugMsg->updateMessage(1);
-
+  debugMsg->updateMessage(1);
 }
 
 void IO::clearChangedFlag() {
@@ -55,10 +56,14 @@ int IO::getValue(void) {
   return pinState;
 }
 
-void IO::setDebugMessage(IODebugMessage* debugMsg){
-    this->debugMsg = debugMsg;
- }
+void IO::setDebugMessage(IODebugMessage* debugMsg) {
+  this->debugMsg = debugMsg;
+}
 
-void IO::printDebugMsg(Print &printer){
-  printer.println(debugMsg->getMessage());
+void IO::printDebugMsg(Print& printer) {
+  if (debugMsg != nullptr) {
+    printer.println(debugMsg->getMessage());
+  } else {
+    printer.println("No debug message configured.");
+  }
 }
