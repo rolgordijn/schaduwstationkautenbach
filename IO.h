@@ -1,6 +1,7 @@
 #pragma once
 
 #include "MCP23017.h"
+#include "IODebugMessage.h"
 
 #include <String.h>
 
@@ -15,7 +16,7 @@ protected:
 
   virtual bool readPinState() const = 0;
   virtual void setPinState(bool level) = 0;
-
+  IODebugMessage* debugMsg;
 public:
 
 
@@ -33,6 +34,12 @@ public:
   bool didChange(void);
 
   void init(int dir, int level);
+
+    void setDebugMessage(IODebugMessage* debugMsg); 
+    void clearChangedFlag();
+    bool didChange(void);
+
+   
 };
 
 class BasicIO : public IO {

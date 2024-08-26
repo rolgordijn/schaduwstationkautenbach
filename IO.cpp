@@ -29,9 +29,10 @@ void IO::setHigh(void) {
 }
 void IO::setLow(void) {
   if (pinState == LOW) return;
-  setPinState(pinState);
+  setPinState(LOW);
   pinState = LOW;
   changed = true;
+
 }
 
 void IO::clearChangedFlag() {
@@ -49,4 +50,11 @@ int IO::getValue(void) {
     this->pinState = currentPinState;
   }
   return pinState;
+}
+
+void IO::setDebugMessage(IODebugMessage* debugMsg){
+    this->debugMsg = debugMsg;
+ }
+void IO::printDebugMsg(Print &printer = Serial){
+  printer.println(debugMsg->getMessage());
 }

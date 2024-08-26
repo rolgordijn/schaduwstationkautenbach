@@ -3,13 +3,18 @@
 #include "debug.h"
 #include "knipper.h"
 #include "debug.h"
-
+#include "IODebugMessage.h"
 #include "constants.h"
 
 
-#include "StopWatch.h"
+//#include "StopWatch.h"
 
 //#pragma GCC optimize("-O")
+
+#define ARRAYCOUNT(x) (sizeof(x) / sizeof(x[0]))
+
+
+
 
 //wisselsrechtdoor, enkel bij kopspoor gebruikt.
 enum class SpoorStatus { initialisatie,
@@ -26,12 +31,6 @@ struct Track {  // Structure declaration
 
 long globalLastDepartureTime;
 
-
-
-
-
-
-
 Track tracks[6];
 
 #if KOPSPOOR == 1
@@ -43,13 +42,9 @@ enum class KopSpoorStatus { init,
                             uit
 };
 
-
 KopSpoorStatus kopSpoorStatus = KopSpoorStatus::init;
 
 #endif
-
-
-
 
 const int analogInputPin = A2;      // Analog input pin for current measurement
 const int peakCurrentResetPin = 2;  // Pin for the reset pulse
@@ -57,9 +52,7 @@ unsigned long resetTime = 100;      // Reset pulse duration in milliseconds
 
 const int buzzerPin = 4;
 
-
 BasicIO buzzer = BasicIO(buzzerPin, OUTPUT);
-
 
 MCP23017 mcp2 = MCP23017(0x21);
 MCP23017 mcp1 = MCP23017(0x20);
@@ -132,11 +125,9 @@ BasicIO relay8 = BasicIO(2, OUTPUT);
 
 BasicIO auxSwitch = BasicIO(5, INPUT);
 
-
-StopWatch stopWatch = StopWatch();
+//StopWatch stopWatch = StopWatch();
 Knipper knipper = Knipper(100, 500);
 
-Knipper knippersnel = Knipper(50, 100);
 
 #if KOPSPOOR == 1
 Wissel* wissels[] = { &wissel1, &wissel2, &wissel3, &wissel4, &wissel5, &wissel6 };
@@ -145,20 +136,14 @@ Wissel* wissels[] = { &wissel1, &wissel2, &wissel3, &wissel4, &wissel5 };
 #endif
 
 // input
-IO* knoppen[] = { &knop1, &knop2, &knop3, &knop4, &knop5, &knop6, &knop7, &knop8, &knop9, &knop10, &knop11, &knop12 };
-IO* bezetmelders[] = { &bezetmelder1, &bezetmelder2, &bezetmelder3, &bezetmelder4, &bezetmelder5, &bezetmelder6, &bezetmelder7, &bezetmelder8, &bezetmelder9, &bezetmelder10, &bezetmelder11, &bezetmelder12 };
-
+IO*  knoppen[] = { &knop1, &knop2, &knop3, &knop4, &knop5, &knop6, &knop7, &knop8, &knop9, &knop10, &knop11, &knop12 };
+IO*  bezetmelders[] = { &bezetmelder1, &bezetmelder2, &bezetmelder3, &bezetmelder4, &bezetmelder5, &bezetmelder6, &bezetmelder7, &bezetmelder8, &bezetmelder9, &bezetmelder10, &bezetmelder11, &bezetmelder12 };
 
 //Ouput
-IO* relays[] = { &relay1, &relay2, &relay3, &relay4, &relay5, &relay6, &relay7, &relay8 };
-IO* leds[] = { &led1, &led2, &led3, &led4, &led5, &led6, &led7, &led8, &led9, &led10, &led11, &led12, &led13, &led14, &led15, &led16 };
-
+IO*  relays[] = { &relay1, &relay2, &relay3, &relay4, &relay5, &relay6, &relay7, &relay8 };
+IO*  leds[] = { &led1, &led2, &led3, &led4, &led5, &led6, &led7, &led8, &led9, &led10, &led11, &led12, &led13, &led14, &led15, &led16 };
 
 Track uitrijspoor;
-
-
-
-
 
 bool trainLeftInLastNSeconds(unsigned long n) {
   unsigned long currentTime = millis();
@@ -173,8 +158,6 @@ bool trainLeftInLastNSeconds(unsigned long n) {
 
   return false;  // No track had a departure in the last N seconds
 }
-
-
 
 bool isCurrentAboveThreshold() {
   int rawValue = analogRead(A2);              // Read the raw ADC value from A2
@@ -193,25 +176,6 @@ bool isCurrentAboveThreshold() {
 }
 
 
-void debugBezetmelders() {
-#if DEBUG == 1
-  for (int i = 0; i < 8; i++) {
-    if (bezetmelders[i]->didChange()) {
-      debug("bezetmelder ");
-      debug(i + 1);
-
-      if (bezetmelders[i]->getValue()) {
-        debugln(": bezet ");
-      } else {
-        debugln(": vrij ");
-      }
-      bezetmelders[i]->clearChangedFlag();
-    }
-  }
-#endif
-}
-
-
 int aantalSporenMetStatus(SpoorStatus status) {
   int n = 0;
   for (Track track : tracks) {
@@ -220,46 +184,13 @@ int aantalSporenMetStatus(SpoorStatus status) {
   return n;
 }
 
-void debugRelays() {
-#if DEBUG == 1
-  for (int i = 0; i < 8; i++) {
-    if (relays[i]->didChange()) {
-      debug("relay ");
-      debug(i + 1);
-
-      if (relays[i]->getValue()) {
-        debugln(": aan");
-      } else {
-        debugln(": uit");
-      }
-      relays[i]->clearChangedFlag();
+void debugIOPins(IO** ioArray, size_t ioCount, bool executeGetValue) {
+  for (int i = 0; i < ioCount; i++) {
+    if (executeGetValue) ioArray[i]->getValue();
+    if (ioArray[i]->didChange()) {
+      ioArray[i]->printDebugMsg(Serial);
+      ioArray[i]->clearChangedFlag();
     }
-  }
-#endif
-}
-
-void debugknop() {
-#if DEBUG == 1
-  for (int i = 0; i < 12; i++) {
-    knoppen[i]->getValue();
-    if (knoppen[i]->didChange()) {
-      debug("knop ");
-      debug(i + 1);
-      if (knoppen[i]->getValue() == KNOP_INGEDUWD) {
-        debugln(": je hebt er op gedrukt!");
-      } else {
-        debugln(": je hebt de knop losgelaten");
-      }
-      knoppen[i]->clearChangedFlag();
-    }
-  }
-#endif
-}
-
-
-void clearBuffer() {
-  while (Serial.available()) {
-    Serial.read();
   }
 }
 
@@ -322,23 +253,51 @@ void initializeWissels() {
 }
 
 void initializeLeds() {
-  debugln(F("INIT led 5-8"));
-  for (IO* led : leds) {
-    led->init(OUTPUT, 0);
+  debugln(F("INIT leds"));
+  for (int i = 0; i < sizeof(leds) / sizeof(leds[0]); i++) {
+    char ledName[10];  // Array size 10 is sufficient for "led " + up to 2 digits (e.g., "led 16")
+    snprintf(ledName, sizeof(ledName), "led %d", i + 1);
+    leds[i]->setDebugMessage(new IODebugMessage(ledName, "is aan", "is uit"));
+    leds[i]->init(OUTPUT, 0);
   }
 }
 
 void initializeKnoppen() {
   debugln("INIT knop 1-12");
-  for (IO* knop : knoppen) {
-    knop->setInput();
+  for (int i = 0; i < sizeof(knoppen) / sizeof(knoppen[0]); i++) {
+    char knopName[10];  // Array size 10 is sufficient for "knop " + up to 2 digits (e.g., "knop 12")
+    snprintf(knopName, sizeof(knopName), "knop %d", i + 1);
+    // Set input mode for the button
+    knoppen[i]->setInput();
+    // Set debug message for the button
+    knoppen[i]->setDebugMessage(new IODebugMessage(knopName, "Je hebt de knop losgelaten", "Je hebt erop gedrukt"));
   }
 }
 
 void initializeBezetmelders() {
   debugln("INIT bezetmelder 1-12");
-  for (IO* bezetmelder : bezetmelders) {
-    bezetmelder->setInput();
+  for (int i = 0; i < sizeof(bezetmelders) / sizeof(bezetmelders[0]); i++) {
+    char bezetmelderName[15];  // Array size 15 is sufficient for "bezetmelder " + up to 2 digits (e.g., "bezetmelder 12")
+    snprintf(bezetmelderName, sizeof(bezetmelderName), "bezetmelder %d", i + 1);
+    // Set input mode for the bezetmelder
+    bezetmelders[i]->setInput();
+    // Check if the current bezetmelder uses inverse logic
+    if (i >= 8) {  // For bezetmelder9 to bezetmelder12 (index 8 to 11)
+      bezetmelders[i]->setDebugMessage(new IODebugMessage(bezetmelderName, "is vrij", "is bezet"));
+    } else {
+      bezetmelders[i]->setDebugMessage(new IODebugMessage(bezetmelderName, "is bezet", "is vrij"));
+    }
+  }
+}
+
+
+void initializeRelays() {
+  debugln(F("INIT relays"));
+  for (int i = 0; i < sizeof(relays) / sizeof(relays[0]); i++) {
+    char relayName[10];  // Array size 10 is sufficient for "relay " + up to 2 digits (e.g., "relay 8")
+    snprintf(relayName, sizeof(relayName), "led %d", i + 1);
+    relays[i]->setDebugMessage(new IODebugMessage(relayName, "is aan", "is uit"));
+    relays[i]->init(OUTPUT, 0);
   }
 }
 
@@ -392,6 +351,7 @@ void setup() {
   initializeLeds();
   initializeKnoppen();
   initializeBezetmelders();
+  initializeRelays();
   checkLeds();
   initializeTracks();
   initializeKopSpoorStatus();
@@ -457,10 +417,10 @@ bool magVertrekken() {
 
 void loop() {
   if (auxSwitch.getValue()) {
-    debugRelays();
-    debugBezetmelders();
 
-    debugknop();
+    debugIOPins(knoppen, ARRAYCOUNT(knoppen), false);
+    debugIOPins(relays, ARRAYCOUNT(relays), false);
+    debugIOPins(bezetmelders, ARRAYCOUNT(bezetmelders), false);
 
     if ((uitrijspoor.state == SpoorStatus::bezet) && (!bezetmelder9.getValue() == BEZET)) {
       uitrijspoor.lastDepartureTimestamp = millis();
@@ -525,8 +485,6 @@ void loop() {
         break;
     }
 
-
-
     //veiligheidspoor
     if (aantalSporenBezet() < 6 || (KOPSPOOR == 1 && tracks[0].state == SpoorStatus::wisselsRechtdoor)) {
       relay8.setValue(RELAY_ON);
@@ -541,13 +499,10 @@ void loop() {
 
 
     //debug start stop inrijspoor
-#if DEBUG == 1
     if (relay8.getValue() != inRijSpoorBezetmelder) {
       debugln(relay8.getValue() == RELAY_ON ? "inrijspoor :start" : "inrijspoor :stop");
       inRijSpoorBezetmelder = relay8.getValue();
     }
-#endif
-
 
     for (int i = 0; i < 6; i++) {
       switch (tracks[i].state) {
@@ -560,7 +515,7 @@ void loop() {
             aantalSporenBezetDebug();
 
             if (knop12.getValue() == KNOP_INGEDUWD && magVertrekken()) {
-              automatischVertrekken = true; 
+              automatischVertrekken = true;
               int automatischVertrekSpoor = vindWillekeurigBezetSpoor(i, tracks, 6);
               tracks[automatischVertrekSpoor].state = SpoorStatus::vertrek;
               uitrijspoor.state = SpoorStatus::bezet;
@@ -620,18 +575,17 @@ void loop() {
 
           break;
         case SpoorStatus::vertrek:
-          if(knop12.getValue() == KNOP_NIET_INGEDUWD && automatischVertrekken == true ){
-            tracks[i].state = SpoorStatus::bezet; 
-             automatischVertrekken= false; 
-            
+          if (knop12.getValue() == KNOP_NIET_INGEDUWD && automatischVertrekken == true) {
+            tracks[i].state = SpoorStatus::bezet;
+            automatischVertrekken = false;
           }
           setOutputs(knipper.getValue(), RELAY_ON, Richting::rechtdoor, i);
           if (uitrijspoor.state == SpoorStatus::vrij) {
             tracks[i].state = SpoorStatus::vrij;
             aantalSporenBezetDebug();
-             automatischVertrekken= false; 
+            automatischVertrekken = false;
           }
-         
+
           break;
         case SpoorStatus::initialisatie:
         default:
