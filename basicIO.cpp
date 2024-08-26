@@ -1,21 +1,18 @@
 #include "Arduino.h"
 #include "IO.h"
 
-BasicIO::BasicIO()
-  : IO() {
+BasicIO::BasicIO()  : IO() {
   ///Serial.println(F("BasicIO default constructor"));
 }
 
-BasicIO::BasicIO(int pin, int tris, int val)
-  : IO() {
+BasicIO::BasicIO(int pin, int tris, int val): IO() {
   //Serial.println(F("BasicIO constructor 1") );
   this->pin = pin;
   pinMode(pin, tris);
   digitalWrite(pin, val);
 }
 
-BasicIO::BasicIO(int pin, int tris)
-  : IO() {
+BasicIO::BasicIO(int pin, int tris) : IO() {
   //Serial.println(F("BasicIO constructor 1") );
   this->pin = pin;
   pinMode(pin, tris);
@@ -28,7 +25,7 @@ bool BasicIO::readPinState() const {
 }
 
 void BasicIO::setPinState(bool level) {
-  digitalWrite(pin,level); 
+  digitalWrite(pin, level);
 }
 
 void BasicIO::setInput() {
