@@ -26,12 +26,14 @@ void IO::setHigh(void) {
   setPinState(HIGH);
   pinState = HIGH;
   changed = true;
+  debugMsg->updateMessage(1);
 }
 void IO::setLow(void) {
   if (pinState == LOW) return;
   setPinState(LOW);
   pinState = LOW;
   changed = true;
+   debugMsg->updateMessage(1);
 
 }
 
@@ -48,6 +50,7 @@ int IO::getValue(void) {
   if (currentPinState != pinState) {
     this->changed = true;
     this->pinState = currentPinState;
+    debugMsg->updateMessage(currentPinState);
   }
   return pinState;
 }
@@ -55,6 +58,7 @@ int IO::getValue(void) {
 void IO::setDebugMessage(IODebugMessage* debugMsg){
     this->debugMsg = debugMsg;
  }
+
 void IO::printDebugMsg(Print &printer = Serial){
   printer.println(debugMsg->getMessage());
 }
