@@ -20,7 +20,7 @@ BasicIO::BasicIO(int pin, int tris) : IO() {
 }
 
 
-bool BasicIO::readPinState() const {
+bool BasicIO::readPinState() {
   return digitalRead(pin);
 }
 

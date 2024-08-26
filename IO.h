@@ -14,7 +14,7 @@ protected:
   bool pinState;
   bool changed;
 
-  virtual bool readPinState() const = 0;
+  virtual bool readPinState() = 0;
   virtual void setPinState(bool level) = 0;
   IODebugMessage* debugMsg;
 public:
@@ -46,26 +46,25 @@ public:
   BasicIO(int pin, int tris, int val);
   BasicIO(int pin, int tris);
 
-
   void setInput();
   void setOutput();
   int getPinMode(void);
 
-  bool readPinState() const override;
-  void setPinState(bool level) override;
+  bool readPinState();
+  void setPinState(bool level);
 };
 
 class MCP23017IO : public IO {
 private:
-  MCP23017* ic;
+  MCP23017 ic;
   bool pinState;
 
 public:
   MCP23017IO();
-  MCP23017IO(MCP23017* ic, uint8_t pin);
+  MCP23017IO(MCP23017& ic, uint8_t pin);
 
-  void setPinState(bool level) override;
-  bool readPinState() const override;
+  void setPinState(bool level);
+  bool readPinState();
 
   void setInput();
   void setOutput();

@@ -46,6 +46,7 @@ bool IO::didChange(void) {
   return changed;
 }
 
+
 int IO::getValue(void) {
   bool currentPinState = readPinState();
   if (currentPinState != pinState) {

@@ -7,8 +7,8 @@
 #define BEZET 1
 #define VRIJ 0
 
-#define KNOP_INGEDUWD 0
-#define KNOP_NIET_INGEDUWD 1
+#define KNOP_INGEDUWD 1
+#define KNOP_NIET_INGEDUWD 0
 
 #define DEBUG 1
 #define KOPSPOOR 1
