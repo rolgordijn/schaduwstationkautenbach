@@ -449,7 +449,7 @@ void uitrijspoorLogica() {
 }
 
 
-void vertreklogica() {
+void vertreklogica(int i) {
   if (knop12.getValue() == KNOP_NIET_INGEDUWD && automatischVertrekken == true) {
     tracks[i].state = SpoorStatus::bezet;
     automatischVertrekken = false;
@@ -462,7 +462,7 @@ void vertreklogica() {
   }
 }
 
-void initialisatielogica() {
+void initialisatielogica(int i) {
   debugSpoor(i, "initialisatie");
   if (bezetmelders[i]->getValue() == BEZET) {
     tracks[i].state = SpoorStatus::bezet;
@@ -474,7 +474,7 @@ void initialisatielogica() {
 }
 
 
-void bezetlogica() {
+void bezetlogica(int i) {
   setOutputs(LED_ON, RELAY_OFF, Richting::rechtdoor, i);
   if (knoppen[i]->getValue() == KNOP_INGEDUWD && magVertrekken()) {
     tracks[i].state = SpoorStatus::vertrek;
@@ -492,7 +492,7 @@ void bezetlogica() {
 }
 
 
-void wisselsrechtdoorlogica() {
+void wisselsrechtdoorlogica(int i) {
   leds[i]->setHigh();
   delay(150);
   setOutputs(0, RELAY_OFF, Richting::rechtdoor, i);
@@ -514,7 +514,7 @@ void wisselsrechtdoorlogica() {
   }
 }
 
-void vrijLogica() {
+void vrijLogica(int i) {
   setOutputs(LED_OFF, RELAY_OFF, Richting::afbuigend, i);
   if (bezetmelders[i]->getValue() == BEZET) {
 
@@ -540,21 +540,21 @@ void fsm() {
   for (int i = 0; i < 6; i++) {
     switch (tracks[i].state) {
       case SpoorStatus::vrij:
-        vrijLogica();
+        vrijLogica(i);
         break;
       case SpoorStatus::wisselsRechtdoor:
-        wisselsrechtdoorlogica();
+        wisselsrechtdoorlogica(i);
         break;
 
       case SpoorStatus::bezet:
-        bezetlogica();
+        bezetlogica(i);
         break;
       case SpoorStatus::vertrek:
-        vertreklogica();
+        vertreklogica(i);
         break;
       case SpoorStatus::initialisatie:
       default:
-        initialisatielogica();
+        initialisatielogica(i);
         break;
     }
   }
