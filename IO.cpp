@@ -22,7 +22,7 @@ void IO::setPinMode(int dir) {
 }
 
 void IO::setHigh(void) {
-  if ((pinState == HIGH) return;
+  if (pinState == HIGH) return;
   setPinState(HIGH);
   pinState = HIGH;
   changed = true;
@@ -59,6 +59,6 @@ void IO::setDebugMessage(IODebugMessage* debugMsg){
     this->debugMsg = debugMsg;
  }
 
-void IO::printDebugMsg(Print &printer = Serial){
+void IO::printDebugMsg(Print &printer){
   printer.println(debugMsg->getMessage());
 }

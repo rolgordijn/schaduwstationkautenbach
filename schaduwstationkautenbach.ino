@@ -7,14 +7,7 @@
 #include "constants.h"
 
 
-//#include "StopWatch.h"
-
-//#pragma GCC optimize("-O")
-
 #define ARRAYCOUNT(x) (sizeof(x) / sizeof(x[0]))
-
-
-
 
 //wisselsrechtdoor, enkel bij kopspoor gebruikt.
 enum class SpoorStatus { initialisatie,

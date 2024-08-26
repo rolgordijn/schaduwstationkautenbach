@@ -34,12 +34,8 @@ public:
   bool didChange(void);
 
   void init(int dir, int level);
-
-    void setDebugMessage(IODebugMessage* debugMsg); 
-    void clearChangedFlag();
-    bool didChange(void);
-
-   
+  void printDebugMsg(Print &printer = Serial);
+  void setDebugMessage(IODebugMessage* debugMsg);
 };
 
 class BasicIO : public IO {
