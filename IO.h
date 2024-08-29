@@ -14,6 +14,8 @@ protected:
   bool pinState;
   bool changed;
 
+  int index;
+
   virtual bool readPinState() = 0;
   virtual void setPinState(bool level) = 0;
   IODebugMessage* debugMsg;
@@ -23,6 +25,11 @@ public:
   IO();
   void setHigh();
   void setLow();
+
+  void setIndex(index);
+  void getIndex(); 
+
+  
 
   int getValue(void);
   void setValue(bool val);
