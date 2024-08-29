@@ -240,7 +240,7 @@ void initializeWissels() {
 }
 
 
-void initializeIOArray(IO* ios[], size_t count, const char* basename, const char* onMessage, const char* offMessage, int tris, int level = 0, int startIndex = 0, void (*ioEventHandler)(int, Event) = nullptr) {
+void initializeIOArray(IO* ios[], size_t count, const char* basename, const char* onMessage, const char* offMessage, int tris, int level = 0, int startIndex = 0, void (*ioEventHandler)(int, IOEvent) = nullptr) {
   char debugMessage[50];  // Adjust size as needed
   snprintf(debugMessage, sizeof(debugMessage), "INIT %s", basename);
   debugln(debugMessage);
@@ -293,10 +293,10 @@ void initUART() {
 }
 
 
-void knoppenHandler(int pin, Event e) {
+void knoppenHandler(int pin, IOEvent e) {
 
 
-  if (e == Event::RISING_EDGE) {
+  if (e == IOEvent::RISING_EDGE) {
 
     debug(pin);
     debugln("gedrukt");
@@ -309,8 +309,8 @@ void knoppenHandler(int pin, Event e) {
 
 
 
-void bezetmelderHandler(int pin, Event e) {
-  if (e == Event::RISING_EDGE) {
+void bezetmelderHandler(int pin, IOEvent e) {
+  if (e == IOEvent::RISING_EDGE) {
     debug("bezetmelder");
     debug(pin);
     debugln("geactiveerd");

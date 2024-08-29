@@ -66,7 +66,7 @@ void IO::handleStateChange(bool currentPinState) {
 }
 
 void IO::triggerEvent(bool currentPinState) {
-  Event e = currentPinState ? Event::RISING_EDGE : Event::FALLING_EDGE;
+  IOEvent e = currentPinState ? IOEvent::RISING_EDGE : IOEvent::FALLING_EDGE;
   ioEventHandler(index, e);
 }
 
@@ -100,6 +100,6 @@ int IO::getIndex(void) {
 }
 
 
-void IO::setCallback(void (*ioEventHandler)(int, Event)) {
+void IO::setCallback(void (*ioEventHandler)(int, IOEvent)) {
   this->ioEventHandler = ioEventHandler;
 }

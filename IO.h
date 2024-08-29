@@ -6,7 +6,7 @@
 #include <String.h>
 
 
-enum class Event {
+enum class IOEvent {
   RISING_EDGE,
   FALLING_EDGE
 };
@@ -25,7 +25,7 @@ protected:
   virtual void setPinState(bool level) = 0;
   IODebugMessage* debugMsg;
 
-  void (*ioEventHandler)(int, Event);
+  void (*ioEventHandler)(int, IOEvent);
 
 
   void handleStateChange(bool currentPinState);
@@ -59,7 +59,7 @@ public:
   void setDebugMessage(IODebugMessage* debugMsg);
 
 
-  void setCallback(void (*ioEventHandler)(int, Event));
+  void setCallback(void (*ioEventHandler)(int, IOEvent));
 };
 
 class BasicIO : public IO {
