@@ -8,7 +8,7 @@
 
 enum class Event {
   RISING_EDGE,
-  FAllING_EDGE
+  FALLING_EDGE
 };
 
 class IO {
@@ -26,6 +26,7 @@ protected:
   IODebugMessage* debugMsg;
 
   void (*ioEventHandler)(int, Event);
+
 
   void handleStateChange(bool currentPinState);
   void triggerEvent(bool currentPinState);
@@ -56,6 +57,9 @@ public:
   void init(int dir, int level);
   void printDebugMsg(Print& printer = Serial);
   void setDebugMessage(IODebugMessage* debugMsg);
+
+
+  void setCallback(void (*ioEventHandler)(int, Event));
 };
 
 class BasicIO : public IO {

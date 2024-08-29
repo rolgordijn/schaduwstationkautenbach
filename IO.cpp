@@ -98,3 +98,8 @@ void IO::setIndex(int index) {
 int IO::getIndex(void) {
   return index;
 }
+
+
+void IO::setCallback(void (*ioEventHandler)(int, Event)) {
+  this->ioEventHandler = ioEventHandler;
+}

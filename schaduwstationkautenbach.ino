@@ -240,7 +240,7 @@ void initializeWissels() {
 }
 
 
-void initializeIOArray(IO* ios[], size_t count, const char* basename, const char* onMessage, const char* offMessage, int tris, int level = 0) {
+void initializeIOArray(IO* ios[], size_t count, const char* basename, const char* onMessage, const char* offMessage, int tris, int level = 0, int startIndex = 0, void (*ioEventHandler)(int, Event) = nullptr) {
   char debugMessage[50];  // Adjust size as needed
   snprintf(debugMessage, sizeof(debugMessage), "INIT %s", basename);
   debugln(debugMessage);
@@ -249,6 +249,8 @@ void initializeIOArray(IO* ios[], size_t count, const char* basename, const char
     snprintf(name, sizeof(name), "%s %d", basename, i + 1);
     ios[i]->setDebugMessage(new IODebugMessage(name, onMessage, offMessage));
     ios[i]->init(tris, level);
+    ios[i]->setIndex(startIndex + i);
+    ios[i]->setCallback(ioEventHandler);
   }
 }
 
@@ -291,6 +293,38 @@ void initUART() {
 }
 
 
+void knoppenHandler(int pin, Event e) {
+
+
+  if (e == Event::RISING_EDGE) {
+
+    debug(pin);
+    debugln("gedrukt");
+  } else {
+    debug("Je hebt  knop");
+    debug(pin);
+    debugln("losgelaten");
+  }
+}
+
+
+
+void bezetmelderHandler(int pin, Event e) {
+  if (e == Event::RISING_EDGE) {
+    debug("bezetmelder");
+    debug(pin);
+    debugln("geactiveerd");
+  } else {
+    debug("Bezetmelder");
+    debug(pin);
+    debugln("gedactiveerd");
+  }
+}
+
+
+
+
+
 void setup() {
   initUART();
   initializeI2C();
@@ -306,10 +340,10 @@ void setup() {
   initializeUitrijspoor();
   auxSwitch.setInput();
 
-  initializeIOArray(leds, ARRAYCOUNT(leds), "Led", "is aan", "is uit", OUTPUT);
-  initializeIOArray(knoppen, ARRAYCOUNT(knoppen), "Knop", "Je hebt erop gedrukt", "Je hebt de knop losgelaten", INPUT);
+  initializeIOArray(leds, ARRAYCOUNT(leds), "Led", "is aan", "is uit", OUTPUT, 0);
+  initializeIOArray(knoppen, ARRAYCOUNT(knoppen), "Knop", "Je hebt erop gedrukt", "Je hebt de knop losgelaten", INPUT, 0, 0, knoppenHandler);
   initializeIOArray(relays, ARRAYCOUNT(relays), "Relais", "is aan", "is uit", OUTPUT);
-  initializeIOArray(bezetmelders, ARRAYCOUNT(bezetmelders), "bezetmelder", "is bezet", "is vrij", INPUT);
+  initializeIOArray(bezetmelders, ARRAYCOUNT(bezetmelders), "bezetmelder", "is bezet", "is vrij", INPUT, 0, 10, bezetmelderHandler);
 
   relay8.setDebugMessage(new IODebugMessage("Inrijspoor relais 8", ": start", ": stop"));
 
@@ -561,6 +595,16 @@ void fsm() {
 }
 
 void loop() {
+
+  for (IO* knop : knoppen) {
+    knop->getValue();
+  }
+
+  for (IO* bezetmelder : bezetmelders) {
+    bezetmelder->getValue();
+  }
+
+
   if (auxSwitch.getValue()) {
 
     debugIOPins(knoppen, ARRAYCOUNT(knoppen), false);
