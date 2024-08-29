@@ -50,12 +50,34 @@ bool IO::didChange(void) {
 int IO::getValue(void) {
   bool currentPinState = readPinState();
   if (currentPinState != pinState) {
-    this->changed = true;
-    this->pinState = currentPinState;
-    debugMsg->updateMessage(currentPinState);
+    handleStateChange(currentPinState);
   }
   return pinState;
 }
+
+void IO::handleStateChange(bool currentPinState) {
+  if (ioEventHandler) {
+    triggerEvent(currentPinState);
+  } else {
+    this->changed = true;  // Specific for polling
+  }
+  updateState(currentPinState);
+  updateDebugMessage(currentPinState);
+}
+
+void IO::triggerEvent(bool currentPinState) {
+  Event e = currentPinState ? Event::RISING_EDGE : Event::FALLING_EDGE;
+  ioEventHandler(index, e);
+}
+
+void IO::updateState(bool currentPinState) {
+  this->pinState = currentPinState;
+}
+
+void IO::updateDebugMessage(bool currentPinState) {
+  debugMsg->updateMessage(currentPinState);
+}
+
 
 void IO::setDebugMessage(IODebugMessage* debugMsg) {
   this->debugMsg = debugMsg;
@@ -67,4 +89,12 @@ void IO::printDebugMsg(Print& printer) {
   } else {
     printer.println("No debug message configured.");
   }
+}
+
+void IO::setIndex(int index) {
+  this->index = index;
+}
+
+int IO::getIndex(void) {
+  return index;
 }

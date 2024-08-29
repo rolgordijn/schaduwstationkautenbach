@@ -6,6 +6,11 @@
 #include <String.h>
 
 
+enum class Event {
+  RISING_EDGE,
+  FAllING_EDGE
+};
+
 class IO {
 
 protected:
@@ -19,6 +24,14 @@ protected:
   virtual bool readPinState() = 0;
   virtual void setPinState(bool level) = 0;
   IODebugMessage* debugMsg;
+
+  void (*ioEventHandler)(int, Event);
+
+  void handleStateChange(bool currentPinState);
+  void triggerEvent(bool currentPinState);
+  void updateState(bool currentPinState);
+  void updateDebugMessage(bool currentPinState);
+
 public:
 
 
@@ -26,10 +39,10 @@ public:
   void setHigh();
   void setLow();
 
-  void setIndex(index);
-  void getIndex(); 
+  void setIndex(int index);
+  int getIndex(void);
 
-  
+
 
   int getValue(void);
   void setValue(bool val);
@@ -41,7 +54,7 @@ public:
   bool didChange(void);
 
   void init(int dir, int level);
-  void printDebugMsg(Print &printer = Serial);
+  void printDebugMsg(Print& printer = Serial);
   void setDebugMessage(IODebugMessage* debugMsg);
 };
 
