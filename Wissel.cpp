@@ -1,68 +1,86 @@
 #include "Wissel.h"
-#include "IO.h"
+#include "Arduino.h"
 #include "debug.h"
 
-Wissel::Wissel() {
-  //Serial.println(F("default constructor wissel"));
-};
+// Only one wissel may pulse at a time — nullptr means the channel is free
+Wissel*  Wissel::actief         = nullptr;
+bool   (*Wissel::isLadderVrijFn)() = nullptr;
 
+void Wissel::setIsLadderVrijFn(bool (*fn)()) { isLadderVrijFn = fn; }
 
-Wissel::Wissel(IO * rechtdoor, IO * afbuigend , int id)  {
-  if (rechtdoor == NULL){
-    Serial.print(F("rechtdoor = null, wissel ID = "));
-    Serial.println(id);
-    return;
-  }
-  if (afbuigend == NULL){
-    Serial.print(F("afbuigend == NULL, wissel ID = "));
-    Serial.println(id);
-    return;
-  }
-  
-  this->rechtdoor = rechtdoor;
-  this->afbuigend = afbuigend;
-  richting = Richting::onbekend;
-  this->id = id;
-};
+static const unsigned long PULS_MS     = 125;
+static const unsigned long SETTLING_MS = 25;
 
-void Wissel::init(void){
-  this->rechtdoor->init(OUTPUT, 0);
-  this->afbuigend->init(OUTPUT, 0);
+Wissel::Wissel()
+    : pinRechtdoor(nullptr), pinAfbuigend(nullptr),
+      richting(Richting::onbekend), gewensteRichting(Richting::onbekend),
+      activeRichting(Richting::onbekend),
+      state(WisselState::idle), stateStart(0), id(0) {}
+
+Wissel::Wissel(IO* rechtdoor, IO* afbuigend, int id)
+    : pinRechtdoor(rechtdoor), pinAfbuigend(afbuigend),
+      richting(Richting::onbekend), gewensteRichting(Richting::onbekend),
+      activeRichting(Richting::onbekend),
+      state(WisselState::idle), stateStart(0), id(id) {}
+
+void Wissel::init() {
+    pinRechtdoor->init(OUTPUT, LOW);
+    pinAfbuigend->init(OUTPUT, LOW);
 }
-
-
-
-
 
 void Wissel::activate(Richting r) {
-  if (this->richting == r)   return;
-  IO * pin;
-  debug("wissel ")
-  debug(id);
-  if (r == Richting::afbuigend) {
-    pin = afbuigend;
-
-    debugln(": afbuigend");
-  } else {
-    pin = rechtdoor;
-    debugln(": rechtdoor");
-  }
-  pin->setHigh();
-  delay(125);
-  pin->setLow();
-  delay(25);
-  this->richting = r;
-
+    gewensteRichting = r;
 }
 
-void Wissel::zetafbuigend() {
-  this->activate(Richting::afbuigend);
+void Wissel::update() {
+    switch (state) {
+
+        case WisselState::idle:
+            // CDU (capacitor-discharge unit) needs time to recharge — simultaneous pulses would be weak or damaging
+            // isLadderVrijFn: halt here only — pulsing/settling states are never interrupted
+            if ((!isLadderVrijFn || isLadderVrijFn())
+                    && actief == nullptr
+                    && gewensteRichting != Richting::onbekend
+                    && gewensteRichting != richting) {
+                actief         = this;
+                activeRichting = gewensteRichting; // snapshot direction at pulse start
+                state          = WisselState::pulsing;
+                stateStart     = millis();
+                IO* pin = (activeRichting == Richting::rechtdoor) ? pinRechtdoor : pinAfbuigend;
+                pin->setHigh();
+                { char b[28]; snprintf(b, sizeof(b), "wissel %d: %s", id, activeRichting == Richting::rechtdoor ? "rechtdoor" : "afbuigend"); debugln(b); }
+            }
+            break;
+
+        case WisselState::pulsing:
+            if (millis() - stateStart >= PULS_MS) {
+                IO* pin = (activeRichting == Richting::rechtdoor) ? pinRechtdoor : pinAfbuigend;
+                pin->setLow();
+                state      = WisselState::settling;
+                stateStart = millis();
+            }
+            break;
+
+        case WisselState::settling:
+            if (millis() - stateStart >= SETTLING_MS) {
+                // Confirm the physical position that was actually pulsed.
+                // If gewensteRichting changed mid-pulse, the idle check will
+                // queue another pulse on the next available cycle.
+                richting = activeRichting;
+                state    = WisselState::idle;
+                actief   = nullptr;
+            }
+            break;
+    }
 }
 
-void Wissel::zetrechtdoor() {
-  this->activate(Richting::rechtdoor);
-}
+void Wissel::zetafbuigend() { activate(Richting::afbuigend); }
+void Wissel::zetrechtdoor() { activate(Richting::rechtdoor); }
 
-Richting Wissel::getRichting(void) {
-  return richting;
+Richting Wissel::getRichting() const { return richting; }
+bool     Wissel::isBusy()     const  { return state != WisselState::idle; }
+
+void Wissel::off() {
+    if (pinRechtdoor) pinRechtdoor->setLow();
+    if (pinAfbuigend) pinAfbuigend->setLow();
 }

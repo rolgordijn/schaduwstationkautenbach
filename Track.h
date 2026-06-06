@@ -1,48 +1,55 @@
-#ifndef TRACK_H
-#define TRACK_H
+#pragma once
+#include "IO.h"
+#include "Wissel.h"
+#include "Knipper.h"
+#include "constants.h"
 
-class IO;
-class Wissel;
-
-// Forward declaration of TrackState enum class
-enum class TrackState;
-
-class Track {
-public:
-  // Constructor
-  Track(IO& relay, IO& knop, IO& bezetmelder, Wissel& wissel, IO& led, TrackState trackStatus);
-
-private:
-  IO& relay;
-  IO& knop;
-  IO& bezetmelder;
-  Wissel& wissel;
-  IO& led;
-  TrackState trackStatus;
+enum class TrackStatus {
+    initialisatie,
+    vrij,
+    bezet,
+    vertrek,             // relay ON, LED blinking  — phase 1: waiting for front of train at exit sensor
+    vertrekGedetecteerd, // relay ON, LED steady     — phase 2: waiting for tail to clear exit sensor
+    wisselsRechtdoor     // kopspoor in use: all switches set rechtdoor with a sweeping LED animation
 };
 
-#endif  // TRACK_H
-#ifndef TRACK_H
-#define TRACK_H
-
-class IO;
-class Wissel;
-
-// Forward declaration of TrackState enum class
-enum class TrackState;
-
+// Single staging track: bezetmelder (arrival), relay (track power), wissel (point motor), LED (status).
+// The wissel is set afbuigend only when this is the designated entry target; all others stay rechtdoor
+// so an arriving train rolls through non-target tracks to reach its assigned track.
 class Track {
 public:
-  // Constructor
-  Track(IO& relay, IO& knop, IO& bezetmelder, Wissel& wissel, IO& led, TrackState trackStatus);
+    Track(IO& relay, IO& knop, IO& bezetmelder, Wissel& wissel, IO& led, Knipper& knipper, int index);
+
+    void init();
+
+    // kopspoorActief / animStep: kopspoor is traversing — override to wisselsRechtdoor with sweep
+    // isDoelSpoor: false for non-target tracks when LAATSTE_SPOOR=1 (wissel stays rechtdoor)
+    void update(IO& exitSensor, bool magVertrekken, bool kopspoorActief = false, int animStep = 0, bool isDoelSpoor = true);
+
+    TrackStatus getStatus() const;
+    void        setStatus(TrackStatus s);
+
+    bool isVrij() const;
+    bool isVertrekkend() const; // true for both vertrek and vertrekGedetecteerd
+
+    // Called by the yard for auto-departure mode
+    void triggerVertrek();
+
+    // Detect vrij→bezet transitions for auto-departure logic and entry gate
+    bool didStatusChange() const;
+    void clearStatusChange();
 
 private:
-  IO& relay;
-  IO& knop;
-  IO& bezetmelder;
-  Wissel& wissel;
-  IO& led;
-  TrackState trackStatus;
-};
+    IO&       relay;
+    IO&       knop;
+    IO&       bezetmelder;
+    Wissel&   wissel;
+    IO&       led;
+    Knipper&  knipper;
+    TrackStatus status;
+    int         index;
+    bool        statusChanged;
 
-#endif  // TRACK_H
+    void transitionTo(TrackStatus newStatus);
+    void applyOutputs(bool ledVal, bool relayVal, Richting richting);
+};
