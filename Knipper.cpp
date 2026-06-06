@@ -1,4 +1,4 @@
-#include "knipper.h"
+#include "Knipper.h"
 #include "Arduino.h"
 
 Knipper::Knipper() {

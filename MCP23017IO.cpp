@@ -1,4 +1,4 @@
-#include "io.h"
+#include "IO.h"
 
 MCP23017IO::MCP23017IO(): IO() {
   //Serial.println(F("default constructor MCP23017IO"));
