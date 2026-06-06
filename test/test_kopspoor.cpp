@@ -30,6 +30,7 @@ struct KopspoorFixture {
     {
         resetTime();
         _ksLadderVrij = true;
+        Wissel::resetCDU();
         Wissel::setIsLadderVrijFn(ksLadderVrij);
         kopspoor.init();
     }
@@ -40,6 +41,13 @@ struct KopspoorFixture {
     }
 };
 
+static void completeWisselCycle(KopspoorFixture& f) {
+    advanceTime(200);  // > PULS_MS (125 ms)
+    f.tick();          // pulsing ends, settling starts
+    advanceTime(50);   // > SETTLING_MS (25 ms)
+    f.tick();          // settling ends, richting confirmed
+}
+
 // ── Initial state ─────────────────────────────────────────────────────────────
 
 TEST_CASE("kopspoor: initial status is vrij") {
@@ -49,11 +57,9 @@ TEST_CASE("kopspoor: initial status is vrij") {
 
 TEST_CASE("kopspoor: wissel defaults to afbuigend (spoor6 accessible)") {
     KopspoorFixture f;
-    f.tick();
-    // In vrij state, wissel should be set afbuigend
-    // After one update cycle the direction is queued; give it time to fire
-    advanceTime(200);
-    f.tick();
+    f.tick();  // vrij: activate(afbuigend) queued
+    f.tick();  // pulsing starts (CDU acquired)
+    completeWisselCycle(f);  // pulse + settling → richting confirmed
     REQUIRE(f.wissel.getRichting() == Richting::afbuigend);
 }
 
@@ -70,13 +76,12 @@ TEST_CASE("kopspoor: btnIn pressed while vrij → inRijden") {
 
 TEST_CASE("kopspoor: wissel switches to rechtdoor during inRijden") {
     KopspoorFixture f;
-    f.tick();
+    f.tick();   // vrij: activate(afbuigend) queued
     f.btnIn.setValue(KNOP_INGEDUWD);
-    f.tick();
+    f.tick();   // pulsing for afbuigend starts; kopspoor → inRijden (activate(rechtdoor) queued)
     REQUIRE(f.kopspoor.isInRijden());
-
-    advanceTime(200);
-    f.tick();
+    completeWisselCycle(f);  // afbuigend cycle done; idle sees rechtdoor → pulsing starts
+    completeWisselCycle(f);  // rechtdoor cycle done
     REQUIRE(f.wissel.getRichting() == Richting::rechtdoor);
 }
 

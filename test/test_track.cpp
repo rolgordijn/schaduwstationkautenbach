@@ -17,8 +17,9 @@ struct TrackFixture {
     Track     track;
 
     TrackFixture()
-        : knop(true)    // HIGH = not pressed (active-low)
+        : knop(KNOP_NIET_INGEDUWD)
         , sensor(VRIJ)
+        , exitSensor(VRIJ)
         , track(relay, knop, sensor, wissel, led, knipper, 0)
     {
         resetTime();
@@ -76,7 +77,8 @@ TEST_CASE("track: vrij → relay and led are off") {
 TEST_CASE("track: bezet → led on, relay off") {
     TrackFixture f;
     f.sensor.setValue(BEZET);
-    f.initAndTick();
+    f.initAndTick();  // initialisatie → bezet (no applyOutputs yet)
+    f.tick();          // bezet: applyOutputs(LED_ON, RELAY_OFF)
     REQUIRE(f.led.getValue()   == LED_ON);
     REQUIRE(f.relay.getValue() == RELAY_OFF);
 }
@@ -127,8 +129,9 @@ TEST_CASE("track: vertrek → relay on") {
     f.sensor.setValue(BEZET);
     f.initAndTick();
     f.knop.setValue(KNOP_INGEDUWD);
-    f.tick();
+    f.tick();  // bezet → vertrek (relay still RELAY_OFF from bezet's applyOutputs)
     REQUIRE(f.track.getStatus() == TrackStatus::vertrek);
+    f.tick();  // vertrek: applyOutputs(knipper, RELAY_ON)
     REQUIRE(f.relay.getValue()  == RELAY_ON);
 }
 

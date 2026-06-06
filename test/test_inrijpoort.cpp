@@ -30,10 +30,10 @@ TEST_CASE("inrijpoort: not traversing initially") {
     REQUIRE_FALSE(f.poort.isTraversing());
 }
 
-TEST_CASE("inrijpoort: relay off initially") {
+TEST_CASE("inrijpoort: relay on when yard not full (trains may enter)") {
     InrijFixture f;
     f.tick();
-    REQUIRE(f.relais.getValue() == RELAY_OFF);
+    REQUIRE(f.relais.getValue() == RELAY_ON);
 }
 
 // ── Gate activation ───────────────────────────────────────────────────────────
@@ -71,12 +71,15 @@ TEST_CASE("inrijpoort: relay turns off after INRIJ_VERTRAGING_MS") {
 TEST_CASE("inrijpoort: treinAangekomen closes gate") {
     InrijFixture f;
     f.sensor.setValue(BEZET);
-    f.tick();
+    f.tick();  // gate starts
     REQUIRE(f.poort.isTraversing());
 
+    // treinAangekomen() only takes effect after INRIJ_VERTRAGING_MS;
+    // also: inrijBezet must be false (no chain restart) so clear the sensor first.
+    advanceTime(INRIJ_VERTRAGING_MS);
+    f.sensor.setValue(VRIJ);  // train has cleared the entry section
+    f.tick();                 // inrijBezet updated to false
     f.poort.treinAangekomen();
-    f.sensor.setValue(VRIJ);  // first train has moved to its track
-    f.tick();
     REQUIRE_FALSE(f.poort.isTraversing());
 }
 

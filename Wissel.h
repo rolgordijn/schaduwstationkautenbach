@@ -29,6 +29,9 @@ public:
     // Only one wissel may pulse at a time (static semaphore enforced here)
     void update();
 
+    // Reset the CDU semaphore — for unit-test fixture setup only
+    static void resetCDU() { actief = nullptr; }
+
     void zetafbuigend();
     void zetrechtdoor();
     void off();

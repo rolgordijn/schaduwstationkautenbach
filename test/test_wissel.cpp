@@ -18,6 +18,7 @@ struct WisselFixture {
     WisselFixture() : wissel(&rechtdoor, &afbuigend, 1) {
         resetTime();
         _ladderVrij = true;
+        Wissel::resetCDU();
         Wissel::setIsLadderVrijFn(ladderGuard);
         wissel.init();
     }

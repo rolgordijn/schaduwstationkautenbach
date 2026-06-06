@@ -1,7 +1,7 @@
 #include "Knipper.h"
 #include "Arduino.h"
 
-Knipper::Knipper() {
+Knipper::Knipper() : treshold(500), period(1000) {
 }
 
 Knipper::Knipper(int treshold, int period) {
