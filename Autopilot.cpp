@@ -10,6 +10,8 @@ void Autopilot::init() {
     schakelaar.setInput();
 }
 
+int  Autopilot::getWachtrij() const { return vertrekWachtrij; }
+
 bool Autopilot::isActief() const {
     return schakelaar.getValue() == KNOP_INGEDUWD;
 }

@@ -26,6 +26,9 @@ public:
     /** @return true while the hardware toggle is in auto position. */
     bool isActief() const;
 
+    /** @return number of pending departures waiting for the interval to elapse. */
+    int getWachtrij() const;
+
     /**
      * @brief Respond to a new arrival.
      *

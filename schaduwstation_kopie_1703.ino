@@ -9,6 +9,11 @@
 #include "constants.h"
 #include "hardware_map.h"
 #include "StopWatch.h"
+#ifdef ARDUINO_UNOR4_WIFI
+#include "WebStatus.h"
+#include "secrets.h"
+WebStatus webStatus;
+#endif
 
 #pragma GCC optimize("-O")
 
@@ -293,6 +298,9 @@ void setup() {
     for (IO* led : alleLeds) led->setValue(LOW);
 
     pinMode(A0, INPUT);
+#ifdef ARDUINO_UNOR4_WIFI
+    webStatus.begin(WIFI_SSID, WIFI_PASSWORD);
+#endif
     debugln(F("EINDE setup"));
 }
 
@@ -351,4 +359,20 @@ void loop() {
 
     // ── Autopilot dequeue ─────────────────────────────────────────────────────
     autopilot.update(magVertrekken());
+
+#ifdef ARDUINO_UNOR4_WIFI
+    {
+        uint8_t bezet = 0;
+        for (int i = 0; i < NUM_TRACKS; i++)
+            if (!sporen[i]->isVrij()) bezet |= (1 << i);
+        webStatus.update(bezet, NUM_TRACKS, autopilot.isActief(),
+                         inrijpoort.isTraversing(),
+#if KOPSPOOR == 1
+                         kopspoor.getStatus() == KopspoorStatus::vrij,
+#else
+                         true,
+#endif
+                         autopilot.getWachtrij());
+    }
+#endif
 }
