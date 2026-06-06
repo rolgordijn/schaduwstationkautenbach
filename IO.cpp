@@ -1,11 +1,9 @@
 #include "IO.h"
 
 IO::IO() {
-  changed = true;
-  pin = 0 ;
-  tris = 1;
+  pin = 0;
   pinState = 0;
-  changed = 0;
+  changed = false;
 }
 
 void IO::setHigh() {

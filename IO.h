@@ -6,7 +6,6 @@
 class IO {
   protected:
     uint8_t pin;
-    bool tris;
     bool pinState;
     bool changed;
   public:
@@ -18,8 +17,7 @@ class IO {
     virtual void setValue(bool val) = 0;
     virtual void setInput()  = 0;
     virtual void setOutput()  = 0;
-    virtual void setPinMode(int dir) =   0;
-    virtual int getPinMode (void) = 0;
+    virtual void setPinMode(int dir) = 0;
     void clearChangedFlag();
     bool didChange(void);
 };
@@ -37,14 +35,11 @@ class BasicIO : public IO {
     void setInput();
     void setOutput();
     void setPinMode(int dir);
-    int getPinMode(void);
-
 };
 
 class MCP23017IO : public IO {
   private:
     MCP23017 * ic;
-    bool pinState;
   public:
     MCP23017IO();
     MCP23017IO(MCP23017 * ic, uint8_t pin);
@@ -56,6 +51,4 @@ class MCP23017IO : public IO {
     void setInput();
     void setOutput();
     void setPinMode(int dir);
-    int getPinMode(void);
-
 };

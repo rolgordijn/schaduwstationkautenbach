@@ -25,9 +25,9 @@ void BasicIO::setHigh(void) {
 }
 void BasicIO::setLow(void) {
   if (pinState == LOW) return;
-  this->changed = true;
   digitalWrite(pin, LOW);
   this->pinState = LOW;
+  this->changed = true;
 }
 
 bool BasicIO::getValue() {
@@ -56,10 +56,6 @@ void BasicIO::setOutput() {
 
 void BasicIO::setPinMode(int dir) {
   pinMode(pin, dir);
-}
-
-int BasicIO::getPinMode(void) {
-  return 0; // not implemented yet? How?
 }
 
 void BasicIO::init(int dir, int level){

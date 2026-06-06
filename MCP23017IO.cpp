@@ -12,8 +12,10 @@ MCP23017IO::MCP23017IO(MCP23017 * ic, uint8_t pin): IO() {
 }
 
 void MCP23017IO::init(int dir, int level) {
-  this->setValue(level);
   this->setPinMode(dir);
+  this->setValue(level);
+  this->getValue();
+  this->clearChangedFlag();
 }
 
 void MCP23017IO::setHigh(void) {
@@ -40,7 +42,7 @@ bool MCP23017IO::getValue(void) {
 }
 
 void MCP23017IO::setValue(bool val) {
-  ic->digitalWrite(pin, val);
+  if (val) setHigh(); else setLow();
 }
 
 void MCP23017IO::setInput() {
@@ -59,6 +61,3 @@ void MCP23017IO::setPinMode(int dir) {
   }
 }
 
-int MCP23017IO::getPinMode(void) {
-  return 0; // not implemented yet? How?
-}
