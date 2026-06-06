@@ -2,6 +2,7 @@
 
 #include "WebStatus.h"
 #include "debug.h"
+#include <string.h>
 
 WebStatus::WebStatus() : _server(80) {}
 
@@ -17,68 +18,136 @@ void WebStatus::begin(const char* ssid, const char* password) {
       debugln(b); }
 }
 
-void WebStatus::update(uint8_t trackBezet, int numTracks, bool autoMode,
-                       bool entryActief, bool kopspoorVrij, int wachtrij) {
-    if (WiFi.status() != WL_CONNECTED) return;
-    WiFiClient client = _server.available();
-    if (!client) return;
-    unsigned long t = millis();
-    while (!client.available() && millis() - t < 500);
-    while (client.available()) client.read();  // drain the HTTP request
-    _serve(client, trackBezet, numTracks, autoMode, entryActief, kopspoorVrij, wachtrij);
-    client.stop();
+WebCmd WebStatus::_parseCmd(const char* req) {
+    // req is the first HTTP request line: "GET /cmd?v=2 HTTP/1.1"
+    if      (strstr(req, "/cmd?v=0"))  return WebCmd::vertrek1;
+    else if (strstr(req, "/cmd?v=1"))  return WebCmd::vertrek2;
+    else if (strstr(req, "/cmd?v=2"))  return WebCmd::vertrek3;
+    else if (strstr(req, "/cmd?v=3"))  return WebCmd::vertrek4;
+    else if (strstr(req, "/cmd?v=4"))  return WebCmd::vertrek5;
+    else if (strstr(req, "/cmd?v=5"))  return WebCmd::vertrek6;
+    else if (strstr(req, "/cmd?ki"))   return WebCmd::kopspoorIn;
+    else if (strstr(req, "/cmd?ku"))   return WebCmd::kopspoorUit;
+    else if (strstr(req, "/cmd?kau"))  return WebCmd::kopspoorAnnuleerUit;
+    else if (strstr(req, "/cmd?ka"))   return WebCmd::kopspoorAnnuleer;
+    return WebCmd::none;
 }
 
-void WebStatus::_serve(WiFiClient& client, uint8_t trackBezet, int numTracks,
-                       bool autoMode, bool entryActief, bool kopspoorVrij, int wachtrij) {
+WebCmd WebStatus::update(const YardState& s) {
+    if (WiFi.status() != WL_CONNECTED) return WebCmd::none;
+    WiFiClient client = _server.available();
+    if (!client) return WebCmd::none;
+
+    unsigned long t = millis();
+    while (!client.available() && millis() - t < 500);
+
+    // Read first request line only
+    char req[80] = {};
+    int len = 0;
+    while (client.available() && len < 79) {
+        char c = client.read();
+        if (c == '\n') break;
+        req[len++] = c;
+    }
+    while (client.available()) client.read();  // drain rest of request
+
+    WebCmd cmd = _parseCmd(req);
+    if (cmd != WebCmd::none) {
+        _redirect(client);
+    } else {
+        _serveHtml(client, s);
+    }
+    client.stop();
+    return cmd;
+}
+
+void WebStatus::_redirect(WiFiClient& client) {
+    client.print(F("HTTP/1.1 302 Found\r\nLocation: /\r\nConnection: close\r\n\r\n"));
+}
+
+// ── HTML helpers ──────────────────────────────────────────────────────────────
+
+static void btn(WiFiClient& c, const char* href, const char* label, bool warn = false) {
+    c.print(F("<a href='"));
+    c.print(href);
+    c.print(warn ? F("' class='btn-w'>") : F("' class='btn'>"));
+    c.print(label);
+    c.print(F("</a>"));
+}
+
+void WebStatus::_serveHtml(WiFiClient& client, const YardState& s) {
     client.print(F(
         "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n"
         "<!DOCTYPE html><html><head><meta charset='utf-8'>"
         "<meta http-equiv='refresh' content='2'>"
         "<title>Schaduwstation Kautenbach</title>"
         "<style>"
-        "body{font-family:monospace;background:#111;color:#aaa;padding:2rem;max-width:360px;margin:auto}"
+        "body{font-family:monospace;background:#111;color:#aaa;padding:2rem;max-width:380px;margin:auto}"
         "h2{color:#fff;letter-spacing:.05em;margin-bottom:1.5rem}"
-        ".row{display:flex;align-items:center;gap:.7rem;margin:.35rem 0}"
+        ".row{display:flex;align-items:center;gap:.6rem;margin:.35rem 0}"
         ".dot{font-size:1.3rem;line-height:1}"
-        ".b .dot,.b .name{color:#e55}"
-        ".v .dot,.v .name{color:#4a4}"
-        ".name{flex:1}"
-        ".status{font-size:.8rem;opacity:.7}"
-        ".meta{margin-top:1.4rem;border-top:1px solid #2a2a2a;padding-top:1rem;font-size:.85rem;line-height:1.8}"
-        ".tag{padding:.1rem .45rem;border-radius:3px;background:#1e1e1e}"
-        ".auto{color:#6af}.man{color:#f90}"
+        ".b .dot,.b .lbl{color:#e55}"
+        ".v .dot,.v .lbl{color:#4a4}"
+        ".lbl{flex:1}"
+        ".st{font-size:.78rem;opacity:.6}"
+        ".btn{padding:.1rem .5rem;background:#1a3550;color:#6af;border-radius:3px;"
+              "text-decoration:none;font-size:.78rem}"
+        ".btn:hover{background:#1e4a70}"
+        ".btn-w{padding:.1rem .5rem;background:#3a1515;color:#e55;border-radius:3px;"
+                "text-decoration:none;font-size:.78rem}"
+        ".btn-w:hover{background:#4a1515}"
+        ".sep{margin-top:1.2rem;border-top:1px solid #222;padding-top:1rem;font-size:.82rem;line-height:2}"
+        ".tag{padding:.1rem .4rem;border-radius:3px;background:#1e1e1e}"
+        ".au{color:#6af}.ma{color:#f90}"
         "</style></head><body>"
         "<h2>Schaduwstation Kautenbach</h2>"
     ));
 
-    for (int i = 0; i < numTracks; i++) {
-        bool bezet = trackBezet & (1 << i);
-        client.print(F("<div class='row "));
-        client.print(bezet ? F("b'>") : F("v'>"));
-        client.print(F("<span class='dot'>"));
-        client.print(bezet ? F("&#9679;") : F("&#9675;"));
-        client.print(F("</span><span class='name'>Spoor "));
+    // ── Track rows ────────────────────────────────────────────────────────────
+    for (int i = 0; i < s.numTracks; i++) {
+        bool bezet = s.trackBezet & (1 << i);
+        client.print(bezet ? F("<div class='row b'>") : F("<div class='row v'>"));
+        client.print(bezet ? F("<span class='dot'>&#9679;</span>") : F("<span class='dot'>&#9675;</span>"));
+        client.print(F("<span class='lbl'>Spoor "));
         client.print(i + 1);
-        client.print(F("</span><span class='status'>"));
+        client.print(F("</span><span class='st'>"));
         client.print(bezet ? F("bezet") : F("vrij"));
-        client.print(F("</span></div>"));
+        client.print(F("</span>"));
+        if (bezet && s.kanVertrekken) {
+            char href[12];
+            snprintf(href, sizeof(href), "/cmd?v=%d", i);
+            btn(client, href, "vertrek");
+        }
+        client.print(F("</div>"));
     }
 
-    client.print(F("<div class='meta'>"));
+    // ── Meta row ─────────────────────────────────────────────────────────────
+    client.print(F("<div class='sep'>"));
     client.print(F("Mode:&nbsp;<span class='tag "));
-    client.print(autoMode ? F("auto'>AUTO") : F("man'>MANUEEL"));
+    client.print(s.autoMode ? F("au'>AUTO") : F("ma'>MANUEEL"));
     client.print(F("</span>"));
-    if (autoMode && wachtrij > 0) {
-        client.print(F(" &nbsp; wachtrij: "));
-        client.print(wachtrij);
+    if (s.autoMode && s.wachtrij > 0) {
+        client.print(F("&nbsp;&nbsp;wachtrij:&nbsp;"));
+        client.print(s.wachtrij);
     }
     client.print(F("<br>Inrijpoort:&nbsp;"));
-    client.print(entryActief ? F("actief") : F("vrij"));
+    client.print(s.entryActief ? F("actief") : F("vrij"));
+
 #if KOPSPOOR == 1
+    // kopspoorStatus: 0=vrij 1=inRijden 2=bezet 3=uitRijden
+    const char* ksLabels[] = { "vrij", "in rijden", "bezet", "uit rijden" };
+    uint8_t ks = s.kopspoorStatus < 4 ? s.kopspoorStatus : 0;
     client.print(F("<br>Kopspoor:&nbsp;"));
-    client.print(kopspoorVrij ? F("vrij") : F("bezet"));
+    client.print(ksLabels[ks]);
+    client.print(F("&nbsp;&nbsp;"));
+    switch (ks) {
+        case 0: btn(client, "/cmd?ki",  "In");              break;
+        case 1: btn(client, "/cmd?ka",  "Annuleer", true);  break;
+        case 2: btn(client, "/cmd?ku",  "Uit");             break;
+        case 3: btn(client, "/cmd?kau", "Annuleer", true);  break;
+    }
 #endif
+
     client.print(F("</div></body></html>"));
 }
 

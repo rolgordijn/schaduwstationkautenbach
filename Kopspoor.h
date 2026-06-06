@@ -34,6 +34,13 @@ public:
     // Passed to Track::update() during inRijden so all track LEDs animate as a coordinated sweep
     int            getAnimStep()  const;
 
+    // Software triggers — mirror the physical buttons; safe to call any time,
+    // each checks the current state before acting.
+    void triggerIn();
+    void triggerUit(bool (*magVertrekken)());
+    void triggerAnnuleer();
+    void triggerAnnuleerUit();
+
 private:
     IO&      sensor;
     IO&      relais;

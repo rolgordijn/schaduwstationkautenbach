@@ -365,14 +365,33 @@ void loop() {
         uint8_t bezet = 0;
         for (int i = 0; i < NUM_TRACKS; i++)
             if (!sporen[i]->isVrij()) bezet |= (1 << i);
-        webStatus.update(bezet, NUM_TRACKS, autopilot.isActief(),
-                         inrijpoort.isTraversing(),
+        YardState ys = {
+            bezet, NUM_TRACKS,
+            autopilot.isActief(),
+            inrijpoort.isTraversing(),
+            kanVertrekken,
+            autopilot.getWachtrij(),
 #if KOPSPOOR == 1
-                         kopspoor.getStatus() == KopspoorStatus::vrij,
+            (uint8_t)kopspoor.getStatus()
 #else
-                         true,
+            0
 #endif
-                         autopilot.getWachtrij());
+        };
+        switch (webStatus.update(ys)) {
+            case WebCmd::vertrek1: if (kanVertrekken) sporen[0]->triggerVertrek(); break;
+            case WebCmd::vertrek2: if (kanVertrekken) sporen[1]->triggerVertrek(); break;
+            case WebCmd::vertrek3: if (kanVertrekken) sporen[2]->triggerVertrek(); break;
+            case WebCmd::vertrek4: if (kanVertrekken) sporen[3]->triggerVertrek(); break;
+            case WebCmd::vertrek5: if (kanVertrekken) sporen[4]->triggerVertrek(); break;
+            case WebCmd::vertrek6: if (kanVertrekken) sporen[5]->triggerVertrek(); break;
+#if KOPSPOOR == 1
+            case WebCmd::kopspoorIn:          kopspoor.triggerIn();            break;
+            case WebCmd::kopspoorUit:         kopspoor.triggerUit(magVertrekken); break;
+            case WebCmd::kopspoorAnnuleer:    kopspoor.triggerAnnuleer();      break;
+            case WebCmd::kopspoorAnnuleerUit: kopspoor.triggerAnnuleerUit();   break;
+#endif
+            default: break;
+        }
     }
 #endif
 }

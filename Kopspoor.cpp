@@ -110,6 +110,35 @@ void Kopspoor::update(bool (*magVertrekken)()) {
     }
 }
 
+void Kopspoor::triggerIn() {
+    if (status == KopspoorStatus::vrij && sensor.getValue() == VRIJ) {
+        animStep = 0; lastAnimTick = millis(); ledAan = false;
+        transitionTo(KopspoorStatus::inRijden);
+        debugln(F("kopspoor in: start (web)"));
+    }
+}
+void Kopspoor::triggerUit(bool (*magVertrekken)()) {
+    if (status == KopspoorStatus::bezet && magVertrekken()) {
+        relais.setValue(RELAY_ON);
+        transitionTo(KopspoorStatus::uitRijden);
+        debugln(F("kopspoor uit: start (web)"));
+    }
+}
+void Kopspoor::triggerAnnuleer() {
+    if (status == KopspoorStatus::inRijden) {
+        led.setValue(LED_OFF);
+        transitionTo(KopspoorStatus::vrij);
+        debugln(F("kopspoor in: geannuleerd (web)"));
+    }
+}
+void Kopspoor::triggerAnnuleerUit() {
+    if (status == KopspoorStatus::uitRijden) {
+        relais.setValue(RELAY_OFF);
+        transitionTo(sensor.getValue() == BEZET ? KopspoorStatus::bezet : KopspoorStatus::vrij);
+        debugln(F("kopspoor uit: geannuleerd (web)"));
+    }
+}
+
 KopspoorStatus Kopspoor::getStatus()   const { return status; }
 bool           Kopspoor::isInRijden()  const { return status == KopspoorStatus::inRijden; }
 bool           Kopspoor::isUitRijden() const { return status == KopspoorStatus::uitRijden; }
