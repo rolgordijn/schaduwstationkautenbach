@@ -1,4 +1,4 @@
-#pragma 
+#pragma once
 #include "IO.h"
 
 class Knipper {
