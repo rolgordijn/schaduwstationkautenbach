@@ -6,20 +6,32 @@
 #include "Track.h"
 #include "constants.h"
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Fixture ───────────────────────────────────────────────────────────────────
+// Each Track needs: a relay (powers the track), a departure button, an occupancy
+// sensor, a turnout, an LED, a blink timer, and an exit sensor (detects the tail
+// clearing the yard throat).  All are VirtualIO so we can read/write them in tests.
+//
+// The Wissel is a no-pin "noop" instance — activate() confirms the direction
+// instantly without touching CDU hardware, so wissel direction changes are free.
+//
+// initAndTick() mirrors the real boot sequence: init() resets outputs to LOW and
+// sets status=initialisatie, then the first tick resolves that to vrij or bezet
+// based on the sensor.  applyOutputs (LED/relay) is NOT called during the
+// initialisatie tick — it runs on the first tick already IN the target state,
+// so tests that check outputs need one extra tick after reaching the target state.
 
 static bool ladderVrij() { return true; }
 
 struct TrackFixture {
     VirtualIO relay, knop, sensor, led, exitSensor;
-    Wissel    wissel;   // wisselNoop — no hardware pins
-    Knipper   knipper;
+    Wissel    wissel;   // noop: no CDU pulse, direction confirmed instantly
+    Knipper   knipper;  // default 500/1000 ms — safe for millis()%period
     Track     track;
 
     TrackFixture()
-        : knop(KNOP_NIET_INGEDUWD)
+        : knop(KNOP_NIET_INGEDUWD)  // active-low: HIGH = not pressed
         , sensor(VRIJ)
-        , exitSensor(VRIJ)
+        , exitSensor(VRIJ)           // start clear so vertrek doesn't immediately detect exit
         , track(relay, knop, sensor, wissel, led, knipper, 0)
     {
         resetTime();
@@ -33,7 +45,7 @@ struct TrackFixture {
 
     void initAndTick() {
         track.init();
-        tick();
+        tick();  // resolves initialisatie → vrij or bezet; outputs still at init() LOW
     }
 };
 
@@ -68,6 +80,7 @@ TEST_CASE("track: vrij → bezet when sensor fires") {
 TEST_CASE("track: vrij → relay and led are off") {
     TrackFixture f;
     f.initAndTick();
+    // init() sets both outputs LOW; vrij's applyOutputs also sets them OFF — consistent
     REQUIRE(f.relay.getValue() == RELAY_OFF);
     REQUIRE(f.led.getValue()   == LED_OFF);
 }
@@ -77,8 +90,8 @@ TEST_CASE("track: vrij → relay and led are off") {
 TEST_CASE("track: bezet → led on, relay off") {
     TrackFixture f;
     f.sensor.setValue(BEZET);
-    f.initAndTick();  // initialisatie → bezet (no applyOutputs yet)
-    f.tick();          // bezet: applyOutputs(LED_ON, RELAY_OFF)
+    f.initAndTick();  // tick 1: initialisatie → bezet; outputs still LOW from init()
+    f.tick();          // tick 2: bezet case runs applyOutputs(LED_ON, RELAY_OFF)
     REQUIRE(f.led.getValue()   == LED_ON);
     REQUIRE(f.relay.getValue() == RELAY_OFF);
 }
@@ -99,7 +112,7 @@ TEST_CASE("track: bezet + button but ladder busy → stays bezet") {
     f.initAndTick();
 
     f.knop.setValue(KNOP_INGEDUWD);
-    f.tick(/*magVertrekken=*/false);
+    f.tick(/*magVertrekken=*/false);  // ladder busy: departure not allowed
     REQUIRE(f.track.getStatus() == TrackStatus::bezet);
 }
 
@@ -114,7 +127,7 @@ TEST_CASE("track: bezet + no button → stays bezet") {
 TEST_CASE("track: didStatusChange fires on vrij→bezet transition") {
     TrackFixture f;
     f.initAndTick();
-    f.track.clearStatusChange();
+    f.track.clearStatusChange();  // reset the flag after boot transition
 
     f.sensor.setValue(BEZET);
     f.tick();
@@ -129,9 +142,9 @@ TEST_CASE("track: vertrek → relay on") {
     f.sensor.setValue(BEZET);
     f.initAndTick();
     f.knop.setValue(KNOP_INGEDUWD);
-    f.tick();  // bezet → vertrek (relay still RELAY_OFF from bezet's applyOutputs)
+    f.tick();  // bezet runs applyOutputs(RELAY_OFF) then transitions to vertrek
     REQUIRE(f.track.getStatus() == TrackStatus::vertrek);
-    f.tick();  // vertrek: applyOutputs(knipper, RELAY_ON)
+    f.tick();  // now IN vertrek: applyOutputs(knipper, RELAY_ON) fires
     REQUIRE(f.relay.getValue()  == RELAY_ON);
 }
 
@@ -140,9 +153,9 @@ TEST_CASE("track: vertrek + exit sensor bezet → vertrekGedetecteerd") {
     f.sensor.setValue(BEZET);
     f.initAndTick();
     f.knop.setValue(KNOP_INGEDUWD);
-    f.tick();
+    f.tick();  // → vertrek
 
-    f.exitSensor.setValue(BEZET);
+    f.exitSensor.setValue(BEZET);  // front of train reaches the yard throat
     f.tick();
     REQUIRE(f.track.getStatus() == TrackStatus::vertrekGedetecteerd);
 }
@@ -154,12 +167,12 @@ TEST_CASE("track: vertrekGedetecteerd + exit sensor clears → vrij") {
     f.sensor.setValue(BEZET);
     f.initAndTick();
     f.knop.setValue(KNOP_INGEDUWD);
-    f.tick();
+    f.tick();                         // → vertrek
     f.exitSensor.setValue(BEZET);
-    f.tick();
+    f.tick();                         // → vertrekGedetecteerd
     REQUIRE(f.track.getStatus() == TrackStatus::vertrekGedetecteerd);
 
-    f.exitSensor.setValue(VRIJ);
+    f.exitSensor.setValue(VRIJ);  // tail has cleared
     f.tick();
     REQUIRE(f.track.getStatus() == TrackStatus::vrij);
 }
@@ -169,13 +182,15 @@ TEST_CASE("track: vertrekGedetecteerd → relay stays on until exit clears") {
     f.sensor.setValue(BEZET);
     f.initAndTick();
     f.knop.setValue(KNOP_INGEDUWD);
-    f.tick();
+    f.tick();                     // → vertrek (relay set ON here via applyOutputs)
     f.exitSensor.setValue(BEZET);
-    f.tick();
+    f.tick();                     // → vertrekGedetecteerd; relay stays ON to keep last wagons moving
     REQUIRE(f.relay.getValue() == RELAY_ON);
 }
 
 // ── triggerVertrek ────────────────────────────────────────────────────────────
+// triggerVertrek() is the software equivalent of pressing the departure button
+// (used by Autopilot and the web interface).
 
 TEST_CASE("track: triggerVertrek on bezet → vertrek") {
     TrackFixture f;
@@ -189,7 +204,7 @@ TEST_CASE("track: triggerVertrek on bezet → vertrek") {
 TEST_CASE("track: triggerVertrek on vrij → no effect") {
     TrackFixture f;
     f.initAndTick();
-    f.track.triggerVertrek();
+    f.track.triggerVertrek();  // nothing to depart
     REQUIRE(f.track.getStatus() == TrackStatus::vrij);
 }
 
@@ -211,13 +226,13 @@ TEST_CASE("track: isVertrekkend true in vertrek and vertrekGedetecteerd") {
     f.initAndTick();
     f.knop.setValue(KNOP_INGEDUWD);
     f.tick();
-    REQUIRE(f.track.isVertrekkend());
+    REQUIRE(f.track.isVertrekkend());  // true in vertrek
 
     f.exitSensor.setValue(BEZET);
     f.tick();
-    REQUIRE(f.track.isVertrekkend());
+    REQUIRE(f.track.isVertrekkend());  // still true in vertrekGedetecteerd — relay must stay on
 
     f.exitSensor.setValue(VRIJ);
     f.tick();
-    REQUIRE_FALSE(f.track.isVertrekkend());
+    REQUIRE_FALSE(f.track.isVertrekkend());  // vrij: departure complete
 }
