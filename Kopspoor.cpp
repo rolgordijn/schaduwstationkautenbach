@@ -77,8 +77,9 @@ void Kopspoor::update(bool (*magVertrekken)()) {
             break;
 
         case KopspoorStatus::bezet:
-            // Keep pointing to kopspoor — train is in the dead-end, spoor6 is available for normal use
-            wissel.activate(Richting::rechtdoor);
+            // Restore afbuigend: kopspoor is occupied so no new train should enter it,
+            // and spoor6 must remain accessible to arriving trains.
+            wissel.activate(Richting::afbuigend);
             led.setValue(LED_ON);
             // magVertrekken() blocks departure while a regular track is also departing — ladder can only hold one train
             if (btnUit.getValue() == KNOP_INGEDUWD && magVertrekken()) {
@@ -89,8 +90,9 @@ void Kopspoor::update(bool (*magVertrekken)()) {
             break;
 
         case KopspoorStatus::uitRijden:
-            // Keep pointing to kopspoor until the tail clears, then vrij will restore afbuigend
-            wissel.activate(Richting::rechtdoor);
+            // Exit is via a different route not controlled by this Arduino, so wissel6 is irrelevant
+            // to the departing train. Set afbuigend so spoor6 stays accessible.
+            wissel.activate(Richting::afbuigend);
             led.setValue(knipper.getValue() ? LED_ON : LED_OFF);
             if (sensor.getValue() == VRIJ) {
                 // Tail of train has cleared — safe to cut relay power now

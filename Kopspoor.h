@@ -13,7 +13,9 @@ enum class KopspoorStatus : uint8_t {
 
 // Dead-end buffer track FSM. btnIn signals the operator's intent; the sensor confirms arrival.
 // wissel is the branch point: afbuigend = spoor6 (safe default), rechtdoor = kopspoor.
-// The wissel stays afbuigend when vrij so normal trains always reach spoor6 unhindered.
+// rechtdoor is set only during inRijden; all other states restore afbuigend so spoor6
+// stays accessible. uitRijden uses a separate exit route, so wissel direction does not
+// affect the departing train.
 class Kopspoor {
 public:
     Kopspoor(IO& sensor, IO& relais, IO& led,
