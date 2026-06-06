@@ -47,6 +47,7 @@ This firmware handles all of it with non-blocking finite state machines, one per
 | **Chained arrivals** | If a train is waiting at the entry section when the gate closes, it detects the falling `yardVol` edge and restarts immediately for that train |
 | **Automatic departure scheduling** | In auto mode, one train departs per `VERTREK_INTERVAL_MS` (default 60 s). Arrivals during the interval are queued; the queue drains automatically and is discarded on manual mode switch |
 | **Dead-end (kopspoor) protection** | W6 defaults to *afbuigend* (→ spoor 6); switches to *rechtdoor* (→ kopspoor) only during the operator-initiated arrival sequence. Kopspoor exit uses a separate physical route — W6 is not involved |
+| **Web status & control** | Arduino UNO R4 WiFi only: a dark-themed auto-refreshing page on port 80 mirrors the physical button panel — track status, departure buttons, kopspoor controls |
 | **Configurable build** | `KOPSPOOR`, `LAATSTE_SPOOR`, and `DEBUG` are compile-time flags in `constants.h` |
 | **Timestamped debug output** | Every `debugln()` call is prefixed with `[millis]` over Serial at 115200 baud |
 
@@ -56,7 +57,7 @@ This firmware handles all of it with non-blocking finite state machines, one per
 
 | Component | Detail |
 |---|---|
-| **MCU** | Arduino (ATmega328P or compatible) |
+| **MCU** | Arduino (ATmega328P or compatible) — or **Arduino UNO R4 WiFi** for the web interface |
 | **I/O expanders** | 3× MCP23017 via I²C (`0x27`, `0x20`, `0x21`) |
 | **Turnout motors** | CDU-fired solenoids on mcp0 pins 0–11 (pairs: even = *afbuigend*, odd = *rechtdoor*) |
 | **Track relays** | Arduino pins 10–13, A1–A3 (⚠ A2 shares with analog current sense) |
@@ -78,6 +79,8 @@ schaduwstation_kopie_1703.ino   — wiring: global objects, setup(), loop()
 ├── InrijPoort     — entry gate (forceAan phase → houdTegen phase → chain detection)
 ├── Kopspoor       — dead-end buffer track FSM; owns W6 and drives it directly
 ├── Autopilot      — auto departure scheduler (interval timer + queue + manual-mode reset)
+├── WebStatus      — (R4 WiFi only) non-blocking HTTP server; serves status page, parses button POSTs,
+│                    returns WebCmd to loop() which dispatches it — knows nothing about Track internals
 │
 ├── IO / BasicIO / MCP23017IO   — hardware abstraction, change-detection, edge-detection
 ├── Knipper        — non-blocking blinker
@@ -109,6 +112,15 @@ Edit `constants.h`:
 #define VERTREK_INTERVAL_MS  60000    // minimum gap between automatic departures
 ```
 
+For the web interface (UNO R4 WiFi only), create `secrets.h` next to the sketch:
+
+```cpp
+#define WIFI_SSID     "your-network"
+#define WIFI_PASSWORD "your-password"
+```
+
+`secrets.h` is not tracked by git. The web server starts automatically when the sketch detects `ARDUINO_UNOR4_WIFI` at compile time — no other changes needed.
+
 ---
 
 ## Building & uploading
@@ -129,6 +141,16 @@ Flip `schakelaarAutoManueel` to auto. The yard dispatches one train per minute a
 
 ### Manual mode
 Press the departure button (`btnVertrek1`–`6`) for the track you want to send. The departure is blocked while the ladder is occupied (another train arriving or departing); button presses during that window are ignored, not queued.
+
+### Web interface *(UNO R4 WiFi build only)*
+
+Open a browser to the IP address printed on Serial at startup. The page auto-refreshes every 2 seconds and shows:
+
+- occupancy of all 6 tracks (bezet / vrij)
+- auto/manual mode and the departure queue depth
+- entry gate and ladder status
+
+Buttons on the page are equivalent to the physical panel: **Vertrek 1–6** trigger a departure for the selected track, and the **Kopspoor In / Uit / Annuleer** buttons mirror their physical counterparts. Commands are ignored if the ladder is occupied (same guard as the physical buttons).
 
 ### Kopspoor *(KOPSPOOR build only)*
 1. Press `btnKopspoorIn` — W6 switches to *rechtdoor*, track LEDs sweep as a visual cue to confirm all points are set
