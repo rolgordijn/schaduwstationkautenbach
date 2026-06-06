@@ -39,6 +39,10 @@ Wissel wissel5(&wrec5, &wafb5, 5);
 #if KOPSPOOR == 1
 Wissel wissel6(&wrec6, &wafb6, 6);
 #endif
+// spoor6 is the far end of the 5-point ladder — no dedicated physical point.
+// wisselNoop satisfies Track's Wissel& reference; activate() confirms the
+// direction immediately without queuing a CDU pulse.
+Wissel wisselNoop;
 
 // ── Track status LEDs ─────────────────────────────────────────────────────────
 
@@ -107,15 +111,12 @@ Knipper   knippersnel = Knipper(50,  100);
 StopWatch stopWatch   = StopWatch();
 BasicIO   buzzer      = BasicIO(4, OUTPUT);
 
-// ── Wissel array (for init loop) ──────────────────────────────────────────────
+// ── Track and wissel arrays ────────────────────────────────────────────────────
+// n points → n+1 regular berths: 5 points always give 6 regular tracks.
+// wissel6 (kopspoor branch) is owned by the Kopspoor object, not this array.
 
-#if KOPSPOOR == 1
-Wissel* wissels[6]  = { &wissel1, &wissel2, &wissel3, &wissel4, &wissel5, &wissel6 };
 const int NUM_TRACKS = 6;
-#else
-Wissel* wissels[5]  = { &wissel1, &wissel2, &wissel3, &wissel4, &wissel5 };
-const int NUM_TRACKS = 5;
-#endif
+Wissel* wissels[5] = { &wissel1, &wissel2, &wissel3, &wissel4, &wissel5 };
 
 // ── Track (spoor) objects — constructor args use functional names from hardware_map.h ──
 
@@ -124,12 +125,9 @@ Track spoor2(relaisSpoor2, btnVertrek2, sensorSpoor2, wissel2, ledSpoor2, knippe
 Track spoor3(relaisSpoor3, btnVertrek3, sensorSpoor3, wissel3, ledSpoor3, knipper, 2);
 Track spoor4(relaisSpoor4, btnVertrek4, sensorSpoor4, wissel4, ledSpoor4, knipper, 3);
 Track spoor5(relaisSpoor5, btnVertrek5, sensorSpoor5, wissel5, ledSpoor5, knipper, 4);
-#if KOPSPOOR == 1
-Track spoor6(relaisSpoor6, btnVertrek6, sensorSpoor6, wissel6, ledSpoor6, knipper, 5);
+Track spoor6(relaisSpoor6, btnVertrek6, sensorSpoor6, wisselNoop, ledSpoor6, knipper, 5);
+
 Track* sporen[6] = { &spoor1, &spoor2, &spoor3, &spoor4, &spoor5, &spoor6 };
-#else
-Track* sporen[5] = { &spoor1, &spoor2, &spoor3, &spoor4, &spoor5 };
-#endif
 
 // LED array — used only for the startup sweep animation
 IO* alleLeds[16] = {
@@ -144,7 +142,7 @@ IO* alleLeds[16] = {
 Kopspoor kopspoor(sensorKopspoor, relaisKopspoor, ledKopspoor,
                   btnKopspoorIn, btnAnnuleer,
                   btnKopspoorUit, btnAnnuleerKopspoorUit,
-                  knipper);
+                  knipper, wissel6);
 #endif
 
 // ── InrijPoort ────────────────────────────────────────────────────────────────
@@ -270,7 +268,7 @@ void setup() {
     delay(100);
 
     debugln(F("init wissels"));
-    for (int i = 0; i < NUM_TRACKS; i++) wissels[i]->init();
+    for (int i = 0; i < NUM_TRACKS - 1; i++) wissels[i]->init();
 
     debugln(F("init sporen"));
     for (int i = 0; i < NUM_TRACKS; i++) sporen[i]->init();
@@ -319,7 +317,7 @@ void loop() {
 
     // ── Point motors ─────────────────────────────────────────────────────────
     bool kanVertrekken = magVertrekken();
-    for (int i = 0; i < NUM_TRACKS; i++) wissels[i]->update();
+    for (int i = 0; i < NUM_TRACKS - 1; i++) wissels[i]->update();
 
     // ── Per-track state machine ───────────────────────────────────────────────
 

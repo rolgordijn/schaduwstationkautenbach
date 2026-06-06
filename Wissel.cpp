@@ -29,6 +29,9 @@ void Wissel::init() {
 }
 
 void Wissel::activate(Richting r) {
+    // No physical pins means this is a dummy wissel (e.g. the last track in the ladder
+    // that is reached when all real points are straight) — confirm instantly, no CDU pulse.
+    if (!pinRechtdoor) { richting = r; return; }
     gewensteRichting = r;
 }
 

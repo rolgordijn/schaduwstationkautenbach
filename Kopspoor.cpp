@@ -5,11 +5,12 @@
 Kopspoor::Kopspoor(IO& sensor, IO& relais, IO& led,
                    IO& btnIn, IO& btnAnnuleer,
                    IO& btnUit, IO& btnAnnuleerUit,
-                   Knipper& knipper)
+                   Knipper& knipper,
+                   Wissel& wissel)
     : sensor(sensor), relais(relais), led(led),
       btnIn(btnIn), btnAnnuleer(btnAnnuleer),
       btnUit(btnUit), btnAnnuleerUit(btnAnnuleerUit),
-      knipper(knipper),
+      knipper(knipper), wissel(wissel),
       status(KopspoorStatus::vrij),
       animStep(0), lastAnimTick(0), ledAan(false) {}
 
@@ -21,6 +22,7 @@ void Kopspoor::init() {
     btnAnnuleer.setInput();
     btnUit.setInput();
     btnAnnuleerUit.setInput();
+    wissel.init();
 }
 
 void Kopspoor::transitionTo(KopspoorStatus s) {
@@ -28,15 +30,20 @@ void Kopspoor::transitionTo(KopspoorStatus s) {
 }
 
 void Kopspoor::update(bool (*magVertrekken)()) {
+    // Drive the wissel FSM every tick regardless of kopspoor state
+    wissel.update();
+
     switch (status) {
 
         case KopspoorStatus::vrij:
+            // Default: afbuigend routes trains to spoor6; rechtdoor would divert them into the dead-end
+            wissel.activate(Richting::afbuigend);
             led.setValue(LED_OFF);
             if (btnIn.getValue() == KNOP_INGEDUWD && sensor.getValue() == VRIJ) {
                 // Operator signals a train is about to enter; animation lets Track LEDs sweep to confirm switches are set
-                animStep    = 0;
+                animStep     = 0;
                 lastAnimTick = millis();
-                ledAan      = false;
+                ledAan       = false;
                 transitionTo(KopspoorStatus::inRijden);
                 debugln(F("kopspoor in: start"));
             } else if (sensor.getValue() == BEZET) {
@@ -46,6 +53,8 @@ void Kopspoor::update(bool (*magVertrekken)()) {
             break;
 
         case KopspoorStatus::inRijden:
+            // rechtdoor routes toward kopspoor
+            wissel.activate(Richting::rechtdoor);
             if (btnAnnuleer.getValue() == KNOP_INGEDUWD) {
                 led.setValue(LED_OFF);
                 transitionTo(KopspoorStatus::vrij);
@@ -68,6 +77,8 @@ void Kopspoor::update(bool (*magVertrekken)()) {
             break;
 
         case KopspoorStatus::bezet:
+            // Keep pointing to kopspoor — train is in the dead-end, spoor6 is available for normal use
+            wissel.activate(Richting::rechtdoor);
             led.setValue(LED_ON);
             // magVertrekken() blocks departure while a regular track is also departing — ladder can only hold one train
             if (btnUit.getValue() == KNOP_INGEDUWD && magVertrekken()) {
@@ -78,6 +89,8 @@ void Kopspoor::update(bool (*magVertrekken)()) {
             break;
 
         case KopspoorStatus::uitRijden:
+            // Keep pointing to kopspoor until the tail clears, then vrij will restore afbuigend
+            wissel.activate(Richting::rechtdoor);
             led.setValue(knipper.getValue() ? LED_ON : LED_OFF);
             if (sensor.getValue() == VRIJ) {
                 // Tail of train has cleared — safe to cut relay power now

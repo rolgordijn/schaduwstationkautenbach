@@ -1,5 +1,6 @@
 #pragma once
 #include "IO.h"
+#include "Wissel.h"
 #include "Knipper.h"
 #include "constants.h"
 
@@ -11,12 +12,15 @@ enum class KopspoorStatus : uint8_t {
 };
 
 // Dead-end buffer track FSM. btnIn signals the operator's intent; the sensor confirms arrival.
+// wissel is the branch point: afbuigend = spoor6 (safe default), rechtdoor = kopspoor.
+// The wissel stays afbuigend when vrij so normal trains always reach spoor6 unhindered.
 class Kopspoor {
 public:
     Kopspoor(IO& sensor, IO& relais, IO& led,
              IO& btnIn, IO& btnAnnuleer,
              IO& btnUit, IO& btnAnnuleerUit,
-             Knipper& knipper);
+             Knipper& knipper,
+             Wissel& wissel);
 
     void init();
     // magVertrekken: yard guard — kopspoor will not depart while another track is also departing
@@ -29,14 +33,15 @@ public:
     int            getAnimStep()  const;
 
 private:
-    IO&     sensor;
-    IO&     relais;
-    IO&     led;
-    IO&     btnIn;
-    IO&     btnAnnuleer;
-    IO&     btnUit;
-    IO&     btnAnnuleerUit;
+    IO&      sensor;
+    IO&      relais;
+    IO&      led;
+    IO&      btnIn;
+    IO&      btnAnnuleer;
+    IO&      btnUit;
+    IO&      btnAnnuleerUit;
     Knipper& knipper;
+    Wissel&  wissel;
 
     KopspoorStatus status;
     int            animStep;      // position in the 12-step sweep cycle

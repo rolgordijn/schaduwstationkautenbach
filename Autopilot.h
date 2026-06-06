@@ -3,21 +3,50 @@
 #include "Track.h"
 #include "constants.h"
 
-// Automatic departure scheduling.
-// Sends one train out per VERTREK_INTERVAL_MS; arrivals during the interval are
-// queued and fired one by one as time elapses. Switching to manual instantly
-// discards the queue so the operator starts with a clean slate.
+/**
+ * @brief Automatic departure scheduling for the staging yard.
+ *
+ * Fires one departure per @ref VERTREK_INTERVAL_MS. When a train arrives
+ * while the interval has not yet elapsed, the departure is queued and
+ * dispatched as soon as the interval expires. Switching the hardware toggle
+ * to manual mode instantly drains the queue so the operator starts clean.
+ *
+ * Usage:
+ *   - Call init() once in setup().
+ *   - Call treinAangekomen() on every vrij→bezet track transition.
+ *   - Call update() every loop tick.
+ */
 class Autopilot {
 public:
     Autopilot(IO& schakelaar, Track** sporen, int numTracks);
+
+    /** Configure the auto/manual switch pin — call once in setup(). */
     void init();
+
+    /** @return true while the hardware toggle is in auto position. */
     bool isActief() const;
 
-    // Call on every vrij→bezet transition; uitgezondenSpoor = track that just arrived
-    // (excluded from departure candidates so it doesn't immediately leave again)
+    /**
+     * @brief Respond to a new arrival.
+     *
+     * @param uitgezondenSpoor  Index of the track that just turned bezet;
+     *                          excluded from departure candidates so the
+     *                          fresh arrival does not immediately leave.
+     * @param magVertrekken     Current ladder-free guard result.
+     *
+     * If the interval has elapsed and the ladder is free, a departure fires
+     * immediately; otherwise the slot is added to the queue.
+     */
     void treinAangekomen(int uitgezondenSpoor, bool magVertrekken);
 
-    // Call every loop tick for dequeue and queue reset
+    /**
+     * @brief Dequeue one pending departure when conditions allow.
+     *
+     * Also resets the queue when not in auto mode, so a mode switch always
+     * leaves a clean state.
+     *
+     * @param magVertrekken  Current ladder-free guard result.
+     */
     void update(bool magVertrekken);
 
 private:
@@ -28,8 +57,10 @@ private:
     unsigned long lastVertrekTijd;  // millis() of the last triggered departure
     int           vertrekWachtrij;  // pending departures waiting for the interval
 
-    // Returns a random bezet track index, excluding uitgezondenSpoor.
-    // Falls back to uitgezondenSpoor if it is the only occupied track.
+    /**
+     * @brief Pick a random bezet track, excluding uitgezondenSpoor.
+     * @return uitgezondenSpoor if it is the only occupied track (fallback).
+     */
     int  vindBezetSpoor(int uitgezondenSpoor) const;
     void triggerVertrek(int uitgezondenSpoor);
 };
