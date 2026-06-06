@@ -7,7 +7,8 @@
 enum class WebCmd : uint8_t {
     none = 0,
     vertrek1, vertrek2, vertrek3, vertrek4, vertrek5, vertrek6,
-    kopspoorIn, kopspoorUit, kopspoorAnnuleer, kopspoorAnnuleerUit
+    kopspoorIn, kopspoorUit, kopspoorAnnuleer, kopspoorAnnuleerUit,
+    wisselSet   // index in lastWisselIdx, direction in lastWisselRechtdoor
 };
 
 struct YardState {
@@ -18,6 +19,8 @@ struct YardState {
     bool    kanVertrekken;  // ladder free right now
     int     wachtrij;       // queued auto departures
     uint8_t kopspoorStatus; // mirrors KopspoorStatus: 0=vrij 1=inRijden 2=bezet 3=uitRijden
+    uint8_t numWissels;     // number of wissels to show (5, or 6 with KOPSPOOR)
+    uint8_t wisselRichting; // bitmask: bit N=1 → wissel N+1 is rechtdoor
 };
 
 /**
@@ -36,6 +39,10 @@ public:
 
     /** Poll once per loop. Returns WebCmd::none if no client or no command. */
     WebCmd update(const YardState& s);
+
+    // Valid after update() returns wisselSet
+    int8_t lastWisselIdx;        // 0-based wissel index (0 = W1 … 5 = W6)
+    bool   lastWisselRechtdoor;  // true = rechtdoor, false = afbuigend
 
 private:
     WiFiServer _server;

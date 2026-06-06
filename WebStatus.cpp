@@ -4,7 +4,7 @@
 #include "debug.h"
 #include <string.h>
 
-WebStatus::WebStatus() : _server(80) {}
+WebStatus::WebStatus() : _server(80), lastWisselIdx(0), lastWisselRechtdoor(false) {}
 
 void WebStatus::begin(const char* ssid, const char* password) {
     debugln(F("wifi: verbinden..."));
@@ -30,6 +30,13 @@ WebCmd WebStatus::_parseCmd(const char* req) {
     else if (strstr(req, "/cmd?ku"))   return WebCmd::kopspoorUit;
     else if (strstr(req, "/cmd?kau"))  return WebCmd::kopspoorAnnuleerUit;
     else if (strstr(req, "/cmd?ka"))   return WebCmd::kopspoorAnnuleer;
+    // wissel: /cmd?w=Nr (rechtdoor) or /cmd?w=Na (afbuigend), N = 0-based index
+    const char* wp = strstr(req, "/cmd?w=");
+    if (wp && wp[7] >= '0' && wp[7] <= '5' && (wp[8] == 'r' || wp[8] == 'a')) {
+        lastWisselIdx       = wp[7] - '0';
+        lastWisselRechtdoor = (wp[8] == 'r');
+        return WebCmd::wisselSet;
+    }
     return WebCmd::none;
 }
 
@@ -67,6 +74,14 @@ void WebStatus::_redirect(WiFiClient& client) {
 
 // ── HTML helpers ──────────────────────────────────────────────────────────────
 
+static void btnOn(WiFiClient& c, const char* href, const char* label) {
+    c.print(F("<a href='"));
+    c.print(href);
+    c.print(F("' class='btn-on'>"));
+    c.print(label);
+    c.print(F("</a>"));
+}
+
 static void btn(WiFiClient& c, const char* href, const char* label, bool warn = false) {
     c.print(F("<a href='"));
     c.print(href);
@@ -96,6 +111,9 @@ void WebStatus::_serveHtml(WiFiClient& client, const YardState& s) {
         ".btn-w{padding:.1rem .5rem;background:#3a1515;color:#e55;border-radius:3px;"
                 "text-decoration:none;font-size:.78rem}"
         ".btn-w:hover{background:#4a1515}"
+        ".btn-on{padding:.1rem .5rem;background:#1a3520;color:#4e4;border-radius:3px;"
+                "text-decoration:none;font-size:.78rem}"
+        ".btn-on:hover{background:#1e4525}"
         ".sep{margin-top:1.2rem;border-top:1px solid #222;padding-top:1rem;font-size:.82rem;line-height:2}"
         ".tag{padding:.1rem .4rem;border-radius:3px;background:#1e1e1e}"
         ".au{color:#6af}.ma{color:#f90}"
@@ -147,6 +165,24 @@ void WebStatus::_serveHtml(WiFiClient& client, const YardState& s) {
         case 3: btn(client, "/cmd?kau", "Annuleer", true);  break;
     }
 #endif
+
+    // ── Wissels ───────────────────────────────────────────────────────────────
+    client.print(F("<div class='sep'><b>Wissels</b><br>"));
+    for (int i = 0; i < s.numWissels; i++) {
+        bool r = s.wisselRichting & (1 << i);
+        char hrR[12], hrA[12];
+        snprintf(hrR, sizeof(hrR), "/cmd?w=%dr", i);
+        snprintf(hrA, sizeof(hrA), "/cmd?w=%da", i);
+        client.print(F("<div class='row'><span class='lbl'>W"));
+        client.print(i + 1);
+        client.print(F("</span><span class='st'>"));
+        client.print(r ? F("rechtdoor") : F("afbuigend"));
+        client.print(F("</span>&nbsp;"));
+        if (r) { btnOn(client, hrR, "R"); btn(client, hrA, "A"); }
+        else   { btn(client, hrR, "R");   btnOn(client, hrA, "A"); }
+        client.print(F("</div>"));
+    }
+    client.print(F("</div>"));
 
     client.print(F("</div></body></html>"));
 }

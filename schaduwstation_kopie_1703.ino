@@ -13,6 +13,8 @@
 #include "WebStatus.h"
 #include "secrets.h"
 WebStatus webStatus;
+#else
+#include <avr/wdt.h>
 #endif
 
 #pragma GCC optimize("-O")
@@ -327,6 +329,30 @@ void loop() {
     bool kanVertrekken = magVertrekken();
     for (int i = 0; i < NUM_TRACKS - 1; i++) wissels[i]->update();
 
+    // ── Wissel test mode: hold btnReserve, press a departure button to toggle ─
+    {
+        static bool prevKnop[6] = {};
+        bool testModus = (btnReserve.getValue() == KNOP_INGEDUWD);
+        IO* knopWissel[6] = { &btnVertrek1, &btnVertrek2, &btnVertrek3,
+                               &btnVertrek4, &btnVertrek5, &btnVertrek6 };
+        for (int i = 0; i < 6; i++) {
+            bool cur = (knopWissel[i]->getValue() == KNOP_INGEDUWD);
+            if (testModus && cur && !prevKnop[i]) {
+                if (i < 5) {
+                    Richting huidig = wissels[i]->getRichting();
+                    wissels[i]->activate(huidig == Richting::rechtdoor ? Richting::afbuigend : Richting::rechtdoor);
+                }
+#if KOPSPOOR == 1
+                else {
+                    Richting huidig = wissel6.getRichting();
+                    wissel6.activate(huidig == Richting::rechtdoor ? Richting::afbuigend : Richting::rechtdoor);
+                }
+#endif
+            }
+            prevKnop[i] = cur;
+        }
+    }
+
     // ── Per-track state machine ───────────────────────────────────────────────
 
 #if LAATSTE_SPOOR == 1
@@ -357,6 +383,29 @@ void loop() {
         sporen[i]->clearStatusChange();
     }
 
+    // ── Test mode: LED test + auto-reset on exit ──────────────────────────────
+    {
+        static bool prevTestModus = false;
+        bool testModus = (btnReserve.getValue() == KNOP_INGEDUWD);
+        if (testModus) {
+            IO* leds[6]  = { &ledSpoor1, &ledSpoor2, &ledSpoor3,
+                              &ledSpoor4, &ledSpoor5, &ledSpoor6 };
+            IO* knops[6] = { &btnVertrek1, &btnVertrek2, &btnVertrek3,
+                              &btnVertrek4, &btnVertrek5, &btnVertrek6 };
+            for (int i = 0; i < 6; i++)
+                leds[i]->setValue(knops[i]->getValue() == KNOP_INGEDUWD ? LED_ON : LED_OFF);
+        } else if (prevTestModus) {
+            // Falling edge of btnReserve: leaving test mode → hardware reset
+#ifdef ARDUINO_UNOR4_WIFI
+            NVIC_SystemReset();
+#else
+            wdt_enable(WDTO_15MS);
+            while (1) {}
+#endif
+        }
+        prevTestModus = testModus;
+    }
+
     // ── Autopilot dequeue ─────────────────────────────────────────────────────
     autopilot.update(magVertrekken());
 
@@ -365,6 +414,12 @@ void loop() {
         uint8_t bezet = 0;
         for (int i = 0; i < NUM_TRACKS; i++)
             if (!sporen[i]->isVrij()) bezet |= (1 << i);
+        uint8_t wRichting = 0;
+        for (int i = 0; i < 5; i++)
+            if (wissels[i]->getRichting() == Richting::rechtdoor) wRichting |= (1 << i);
+#if KOPSPOOR == 1
+        if (wissel6.getRichting() == Richting::rechtdoor) wRichting |= (1 << 5);
+#endif
         YardState ys = {
             bezet, NUM_TRACKS,
             autopilot.isActief(),
@@ -372,10 +427,12 @@ void loop() {
             kanVertrekken,
             autopilot.getWachtrij(),
 #if KOPSPOOR == 1
-            (uint8_t)kopspoor.getStatus()
+            (uint8_t)kopspoor.getStatus(),
 #else
-            0
+            0,
 #endif
+            (uint8_t)(KOPSPOOR == 1 ? 6 : 5),
+            wRichting
         };
         switch (webStatus.update(ys)) {
             case WebCmd::vertrek1: if (kanVertrekken) sporen[0]->triggerVertrek(); break;
@@ -390,6 +447,15 @@ void loop() {
             case WebCmd::kopspoorAnnuleer:    kopspoor.triggerAnnuleer();      break;
             case WebCmd::kopspoorAnnuleerUit: kopspoor.triggerAnnuleerUit();   break;
 #endif
+            case WebCmd::wisselSet: {
+                int8_t idx = webStatus.lastWisselIdx;
+                Richting r = webStatus.lastWisselRechtdoor ? Richting::rechtdoor : Richting::afbuigend;
+                if (idx >= 0 && idx < 5) wissels[idx]->activate(r);
+#if KOPSPOOR == 1
+                else if (idx == 5) wissel6.activate(r);
+#endif
+                break;
+            }
             default: break;
         }
     }
